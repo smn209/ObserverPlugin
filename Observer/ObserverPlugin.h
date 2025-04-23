@@ -28,21 +28,31 @@ public:
     ObserverStoC* stoc_handler = nullptr;
     ObserverMatch* match_handler = nullptr;
 
-    bool stoc_status = true; // master toggle
-    bool log_skill_activations = true;
-    bool log_skill_finishes = true;
-    bool log_skill_stops = true;
-    bool log_attack_skill_activations = true;
-    bool log_attack_skill_finishes = true;
-    bool log_attack_skill_stops = true;
-    bool log_basic_attack_starts = true;
-    bool log_basic_attack_finishes = true;
-    bool log_basic_attack_stops = true;
-    bool log_interrupts = true;
-    bool log_instant_skills = true;
-    bool log_damage = true;
-    bool log_knockdowns = true;
-    bool log_movement = true;
+    bool stoc_status = false; // master toggle 
+    bool log_skill_activations = false;
+    bool log_attack_skill_activations = false;
+    bool log_instant_skills = false;
+    bool log_basic_attack_starts = false;
+    bool log_basic_attack_stops = false;
+    bool log_skill_finishes = false;
+    bool log_skill_stops = false;
+    bool log_interrupts = false;
+    bool log_attack_skill_stops = false;
+    bool log_attack_skill_finishes = false;
+    bool log_basic_attack_finishes = false;
+    bool log_damage = false;
+    bool log_knockdowns = false;
+    bool log_movement = false;
+
+    bool log_jumbo_base_under_attack = true;
+    bool log_jumbo_guild_lord_under_attack = true;
+    bool log_jumbo_captured_shrine = true;
+    bool log_jumbo_captured_tower = true;
+    bool log_jumbo_party_defeated = true;
+    bool log_jumbo_morale_boost = true;
+    bool log_jumbo_victory = true;
+    bool log_jumbo_flawless_victory = true;
+    bool log_jumbo_unknown = true;
 
 private:
     // visibility state is handled by plugin_visible in ToolboxUIPlugin base class

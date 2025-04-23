@@ -35,6 +35,7 @@ private:
     GW::HookEntry GenericModifier_Entry;
     GW::HookEntry GenericFloat_Entry;
     GW::HookEntry AgentMovement_Entry;
+    GW::HookEntry JumboMessage_Entry;
     
     // common handler methods for Generic packets (similar to ObserverModule)
     void handleGenericPacket(uint32_t value_id, uint32_t caster_id, uint32_t target_id, uint32_t value, bool no_target);
@@ -54,7 +55,8 @@ private:
     void handleAttackFinished(uint32_t caster_id);
     void handleDamage(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type);
     void handleKnockdown(uint32_t cause_id, uint32_t target_id);
-    void handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane); 
+    void handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane);
+    void handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet);
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,

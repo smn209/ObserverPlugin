@@ -44,13 +44,9 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
     return &instance;
 }
 
-void ObserverPlugin::LoadSettings(
-    const wchar_t* folder
-)
+void ObserverPlugin::LoadSettings(const wchar_t* folder)
 {
-    ToolboxUIPlugin::LoadSettings(folder); // load base settings (visibility, etc.)
-    
-    // load observer specific settings
+    ToolboxUIPlugin::LoadSettings(folder);
     PLUGIN_LOAD_BOOL(stoc_status);
     PLUGIN_LOAD_BOOL(log_skill_activations);
     PLUGIN_LOAD_BOOL(log_skill_finishes);
@@ -66,15 +62,21 @@ void ObserverPlugin::LoadSettings(
     PLUGIN_LOAD_BOOL(log_damage);
     PLUGIN_LOAD_BOOL(log_knockdowns);
     PLUGIN_LOAD_BOOL(log_movement);
+
+    PLUGIN_LOAD_BOOL(log_jumbo_base_under_attack);
+    PLUGIN_LOAD_BOOL(log_jumbo_guild_lord_under_attack);
+    PLUGIN_LOAD_BOOL(log_jumbo_captured_shrine);
+    PLUGIN_LOAD_BOOL(log_jumbo_captured_tower);
+    PLUGIN_LOAD_BOOL(log_jumbo_party_defeated);
+    PLUGIN_LOAD_BOOL(log_jumbo_morale_boost);
+    PLUGIN_LOAD_BOOL(log_jumbo_victory);
+    PLUGIN_LOAD_BOOL(log_jumbo_flawless_victory);
+    PLUGIN_LOAD_BOOL(log_jumbo_unknown);
 }
 
-void ObserverPlugin::SaveSettings(
-    const wchar_t* folder
-)
+void ObserverPlugin::SaveSettings(const wchar_t* folder)
 {
-    ToolboxUIPlugin::SaveSettings(folder); // save base settings
-
-    // save observer specific settings
+    ToolboxUIPlugin::SaveSettings(folder);
     PLUGIN_SAVE_BOOL(stoc_status);
     PLUGIN_SAVE_BOOL(log_skill_activations);
     PLUGIN_SAVE_BOOL(log_skill_finishes);
@@ -90,12 +92,22 @@ void ObserverPlugin::SaveSettings(
     PLUGIN_SAVE_BOOL(log_damage);
     PLUGIN_SAVE_BOOL(log_knockdowns);
     PLUGIN_SAVE_BOOL(log_movement);
+
+    PLUGIN_SAVE_BOOL(log_jumbo_base_under_attack);
+    PLUGIN_SAVE_BOOL(log_jumbo_guild_lord_under_attack);
+    PLUGIN_SAVE_BOOL(log_jumbo_captured_shrine);
+    PLUGIN_SAVE_BOOL(log_jumbo_captured_tower);
+    PLUGIN_SAVE_BOOL(log_jumbo_party_defeated);
+    PLUGIN_SAVE_BOOL(log_jumbo_morale_boost);
+    PLUGIN_SAVE_BOOL(log_jumbo_victory);
+    PLUGIN_SAVE_BOOL(log_jumbo_flawless_victory);
+    PLUGIN_SAVE_BOOL(log_jumbo_unknown);
 }
 
 // draws the generic UI settings in the main settings panel
 void ObserverPlugin::DrawSettings()
 {
-    ToolboxUIPlugin::DrawSettings(); // draw base settings (lock position, size, etc.)
+    ToolboxUIPlugin::DrawSettings(); // draw base settings (visibility, etc.)
 }
 
 void ObserverPlugin::Initialize(
@@ -191,6 +203,28 @@ void ObserverPlugin::Draw(
 
                 if (ImGui::TreeNode("Agent Events")) {
                     AddLogCheckbox("Movement", &log_movement, "Handler: ObserverStoC::handleAgentMovement\nPacket Header: GAME_SMSG_AGENT_MOVE_TO_POINT (0x29)");
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Jumbo Messages")) {
+                    AddLogCheckbox("Base Under Attack##Jumbo", &log_jumbo_base_under_attack,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 0");
+                    AddLogCheckbox("Guild Lord Under Attack##Jumbo", &log_jumbo_guild_lord_under_attack,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 1");
+                    AddLogCheckbox("Captured Shrine##Jumbo", &log_jumbo_captured_shrine,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 3");
+                    AddLogCheckbox("Captured Tower##Jumbo", &log_jumbo_captured_tower,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 5");
+                    AddLogCheckbox("Party Defeated##Jumbo", &log_jumbo_party_defeated,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 6");
+                    AddLogCheckbox("Morale Boost##Jumbo", &log_jumbo_morale_boost,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 9");
+                    AddLogCheckbox("Victory##Jumbo", &log_jumbo_victory,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 16");
+                    AddLogCheckbox("Flawless Victory##Jumbo", &log_jumbo_flawless_victory,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Type: 17");
+                    AddLogCheckbox("Unknown Types##Jumbo", &log_jumbo_unknown,
+                                   "Handler: ObserverStoC::handleJumboMessage\nPacket Header: 0x18F, Unknown Types");
                     ImGui::TreePop();
                 }
 

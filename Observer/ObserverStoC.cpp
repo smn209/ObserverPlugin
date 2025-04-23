@@ -102,6 +102,13 @@ void ObserverStoC::RegisterCallbacks() {
             handleAgentMovement(agent_id, x, y, plane);
         }
     );
+
+    // JumboMessage (0x18F)
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::JumboMessage>(
+        &JumboMessage_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::JumboMessage* packet) -> void {
+            if (!owner || !owner->stoc_status) return;
+            handleJumboMessage(packet);
+        });
 }
 
 void ObserverStoC::RemoveCallbacks() {
@@ -111,6 +118,7 @@ void ObserverStoC::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericModifier>(&GenericModifier_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericFloat>(&GenericFloat_Entry);
     GW::StoC::RemoveCallback(GAME_SMSG_AGENT_MOVE_TO_POINT, &AgentMovement_Entry);
+    GW::StoC::RemoveCallback<GW::Packet::StoC::JumboMessage>(&JumboMessage_Entry);
 
     cleanupAgentActions(); // clean up map pointers before clearing the map itself
 }
@@ -360,5 +368,71 @@ void ObserverStoC::handleKnockdown(uint32_t cause_id, uint32_t target_id) {
     wchar_t buffer[128];
     // note: cause_id might not always be the direct cause, but it's the agent ID associated with the packet.
     swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Knockdown: Target %u (Cause Agent: %u)", target_id, cause_id); 
+    GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
+}
+
+// convert JumboMessage value to a simple party index string for logging
+const wchar_t* JumboValueToPartyStr(uint32_t value) {
+    switch (value) {
+        case GW::Packet::StoC::JumboMessageValue::PARTY_ONE: return L"Party 1";
+        case GW::Packet::StoC::JumboMessageValue::PARTY_TWO: return L"Party 2";
+        default: return L"Unknown Party";
+    }
+}
+
+void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet) {
+    if (!owner || !owner->stoc_status) return; 
+
+    wchar_t buffer[128];
+    const wchar_t* type_str = L"Unknown Type";
+    const wchar_t* value_str = L""; // value might not apply to all types
+    bool should_log = false; // flag to determine if this specific type should be logged
+
+    // use GWCA constants and check corresponding log flag
+    switch (packet->type) {
+        case GW::Packet::StoC::JumboMessageType::BASE_UNDER_ATTACK:
+            if (owner->log_jumbo_base_under_attack) { type_str = L"Base Under Attack"; should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::GUILD_LORD_UNDER_ATTACK:
+            if (owner->log_jumbo_guild_lord_under_attack) { type_str = L"Guild Lord Under Attack"; should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::CAPTURED_SHRINE:
+            if (owner->log_jumbo_captured_shrine) { type_str = L"Captured Shrine"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::CAPTURED_TOWER:
+            if (owner->log_jumbo_captured_tower) { type_str = L"Captured Tower"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::PARTY_DEFEATED:
+            if (owner->log_jumbo_party_defeated) { type_str = L"Party Defeated"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::MORALE_BOOST:
+            if (owner->log_jumbo_morale_boost) { type_str = L"Morale Boost"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::VICTORY:
+            if (owner->log_jumbo_victory) { type_str = L"Victory"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        case GW::Packet::StoC::JumboMessageType::FLAWLESS_VICTORY:
+            if (owner->log_jumbo_flawless_victory) { type_str = L"Flawless Victory"; value_str = JumboValueToPartyStr(packet->value); should_log = true; }
+            break;
+        default:
+            if (owner->log_jumbo_unknown) { // check if unknown types should be logged
+                swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Jumbo Message: Unknown Type %u, Value %u", packet->type, packet->value);
+                GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
+            }
+            return; // exit for unknown or unlogged types
+    }
+
+    // log only if the specific type's flag is enabled
+    if (!should_log) {
+        return;
+    }
+
+    // format message with type and value (if applicable)
+    if (wcslen(value_str) > 0) {
+        swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Jumbo Message: %ls - %ls", type_str, value_str);
+    } else {
+        swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Jumbo Message: %ls", type_str);
+    }
+
     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
 }
