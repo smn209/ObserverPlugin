@@ -18,7 +18,7 @@
 ObserverPlugin::ObserverPlugin()
 {
     stoc_handler = new ObserverStoC(this);
-    match_handler = new ObserverMatch();
+    match_handler = new ObserverMatch(stoc_handler);
     // configure base UI plugin behavior
     can_show_in_main_window = true;
     can_close = true;
@@ -106,18 +106,14 @@ void ObserverPlugin::Initialize(
 {
     ToolboxUIPlugin::Initialize(ctx, allocator_fns, toolbox_dll); // initialize base first
     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Observer Plugin initialized!"); 
-    stoc_handler->RegisterCallbacks(); // register packet callbacks for main handler
     match_handler->RegisterCallbacks(); // register packet callbacks for match handler
 }
 
 void ObserverPlugin::SignalTerminate()
 {
     ToolboxUIPlugin::SignalTerminate(); // signal base first
-    if (stoc_handler) { 
-        stoc_handler->RemoveCallbacks(); // remove packet callbacks for main handler
-    }
     if (match_handler) {
-        match_handler->RemoveCallbacks();
+        match_handler->RemoveCallbacks(); // this will now also handle removing stoc callbacks if needed
     }
 }
 

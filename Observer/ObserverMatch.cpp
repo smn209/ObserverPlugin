@@ -1,11 +1,14 @@
 #include "../Base/stl.h" // needed for some types
 #include "ObserverMatch.h"
+#include "ObserverStoC.h" 
 
 #include <GWCA/Managers/StoCMgr.h>     
 #include <GWCA/Managers/ChatMgr.h>    
 #include <GWCA/Packets/StoC.h>      
 
-ObserverMatch::ObserverMatch() {
+ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
+    : stoc_handler_(stoc_handler) 
+{
 }
 
 // registers the callback for InstanceLoadInfo packets
@@ -21,17 +24,35 @@ void ObserverMatch::RegisterCallbacks() {
 // removes the callback for InstanceLoadInfo packets
 void ObserverMatch::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::InstanceLoadInfo>(&InstanceLoadInfo_Entry);
+    // also ensure StoC callbacks are removed if we are currently observing
+    if (is_observing && stoc_handler_) {
+        stoc_handler_->RemoveCallbacks();
+        is_observing = false; 
+    }
 }
 
 // handles the InstanceLoadInfo packet when received
 void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, const GW::Packet::StoC::InstanceLoadInfo* packet) {
     if (!packet) return;
+    if (!stoc_handler_) return; // don't do anything if handler is null
 
+    bool was_observing = is_observing;
     is_observing = (packet->is_observer != 0);
 
-    if (is_observing) {
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Entered Observer Mode instance.");
+    // state transition logic
+    if (is_observing && !was_observing) {
+        // entered observer mode
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Entered Observer Mode instance. Registering StoC callbacks.");
+        stoc_handler_->RegisterCallbacks();
+    } else if (!is_observing && was_observing) {
+        // exited observer mode
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Exited Observer Mode instance. Removing StoC callbacks.");
+        stoc_handler_->RemoveCallbacks();
+    } else if (is_observing) {
+        // still observing (e.g., map change within observer mode)
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Still in Observer Mode instance.");
     } else {
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Entered non-Observer Mode instance.");
+        // still not observing
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Still in non-Observer Mode instance.");
     }
 } 
