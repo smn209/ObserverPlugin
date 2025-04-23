@@ -83,14 +83,15 @@ void ObserverStoC::RegisterCallbacks() {
         [this](const GW::HookStatus*, GW::Packet::StoC::PacketBase* pak) -> void {
             if (!owner || !owner->enabled || !owner->log_movement) return;
             
-            // Cast the packet base to a pointer we can work with
-            // The position packet structure is:
+            // position packet structure : (maybe more infos in GWCA)
+
             // uint32_t header; (already in PacketBase)
             // uint32_t agent_id; (DWORD)
-            // float x; (Vec2 - first coordinate)
-            // float y; (Vec2 - second coordinate)
-            // uint16_t word1; (Additional data - possibly plane)
-            // uint16_t word2; (Additional data)
+            // float x; (Vec2 - x coordinate)
+            // float y; (Vec2 - y coordinate)
+            // uint16_t word1; (plane)
+            // uint16_t word2; (unknown data)
+
             uint32_t* data = (uint32_t*)pak;
             uint32_t agent_id = data[1];
             float x = *(float*)(&data[2]);
