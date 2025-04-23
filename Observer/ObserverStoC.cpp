@@ -140,7 +140,7 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
         (damage_type == static_cast<uint32_t>(GW::Packet::StoC::GenericValueID::armorignoring) ? L"Armor-ignoring" : L"Normal");
     
     wchar_t buffer[128];
-    swprintf(buffer, 128, L"Damage (%ls): %.0f from %d to %d", damage_type_str, value, caster_id, target_id);
+    swprintf(buffer, 128, L"Damage (%ls): %f from %d to %d", damage_type_str, value, caster_id, target_id);
     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
 }
 
