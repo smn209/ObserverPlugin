@@ -28,7 +28,7 @@ public:
     ObserverStoC* stoc_handler = nullptr;
     ObserverMatch* match_handler = nullptr;
 
-    bool enabled = true; // master toggle
+    bool stoc_status = true; // master toggle
     bool log_skill_activations = true;
     bool log_skill_finishes = true;
     bool log_skill_stops = true;

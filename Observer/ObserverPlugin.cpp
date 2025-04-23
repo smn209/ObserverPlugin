@@ -51,7 +51,7 @@ void ObserverPlugin::LoadSettings(
     ToolboxUIPlugin::LoadSettings(folder); // load base settings (visibility, etc.)
     
     // load observer specific settings
-    PLUGIN_LOAD_BOOL(enabled);
+    PLUGIN_LOAD_BOOL(stoc_status);
     PLUGIN_LOAD_BOOL(log_skill_activations);
     PLUGIN_LOAD_BOOL(log_skill_finishes);
     PLUGIN_LOAD_BOOL(log_skill_stops);
@@ -75,7 +75,7 @@ void ObserverPlugin::SaveSettings(
     ToolboxUIPlugin::SaveSettings(folder); // save base settings
 
     // save observer specific settings
-    PLUGIN_SAVE_BOOL(enabled);
+    PLUGIN_SAVE_BOOL(stoc_status);
     PLUGIN_SAVE_BOOL(log_skill_activations);
     PLUGIN_SAVE_BOOL(log_skill_finishes);
     PLUGIN_SAVE_BOOL(log_skill_stops);
@@ -131,78 +131,71 @@ void ObserverPlugin::Draw(
     if (ImGui::Begin(Name(), is_visible_ptr, GetWinFlags())) {
         // display observer status
         if (match_handler && match_handler->IsObserving()) {
-            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "OBSERVER MODE ACTIVE");
-            ImGui::Separator();
-        }else{
-            ImGui::TextColored(ImVec4(0.0f, 0.0f, 1.0f, 1.0f), "NOT OBSERVING");
+            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "OBSERVER MODE ACTIVE");
+        } else {
+            ImGui::TextDisabled("NOT OBSERVING");
         }
+        ImGui::Separator();
 
-        ImGui::Checkbox("Enable Skill Logging", &enabled);
+        ImGui::Checkbox("Enable StoC Logging", &stoc_status);
         ImGui::SameLine(); 
-        ImGui::TextDisabled("(Master Toggle)");
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Master toggle for all logging options below.");
+        }
         
-        if (enabled)
+        if (stoc_status)
         {
-            ImGui::Indent();
-            ImGui::Text("Log Options:");
-            
-            ImGui::Checkbox("Skill Activations", &log_skill_activations);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleSkillActivated\nPacket/Value ID: 0x56/0x55 with value 1 (skill_activated)");
+            ImGui::Separator();
+            if (ImGui::CollapsingHeader("StoC Options"))
+            {
+                ImGui::Indent();
+
+                auto AddLogCheckbox = [](const char* label, bool* v, const char* tooltip_text) {
+                    ImGui::Checkbox(label, v);
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("(?)");
+                    if (ImGui::IsItemHovered()) {
+                        ImGui::SetTooltip(tooltip_text);
+                    }
+                };
+
+                if (ImGui::TreeNode("Skill Events")) {
+                    AddLogCheckbox("Activations##Skill", &log_skill_activations, "Handler: ObserverStoC::handleSkillActivated\nPacket/Value ID: 0x56/0x55 with value 1 (skill_activated)");
+                    AddLogCheckbox("Finishes##Skill", &log_skill_finishes, "Handler: ObserverStoC::handleSkillFinished\nPacket/Value ID: 0x55 with value 2 (skill_finished)");
+                    AddLogCheckbox("Stops##Skill", &log_skill_stops, "Handler: ObserverStoC::handleSkillStopped\nPacket/Value ID: 0x56 with value 2 (skill_stopped)");
+                    AddLogCheckbox("Instant Activations##Skill", &log_instant_skills, "Handler: ObserverStoC::handleInstantSkillActivated\nPacket/Value ID: 0x56 with value 5 (instant_skill_activated)");
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Attack Skill Events")) {
+                     AddLogCheckbox("Activations##AttackSkill", &log_attack_skill_activations, "Handler: ObserverStoC::handleAttackSkillActivated\nPacket/Value ID: 0x56/0x55 with value 3 (attack_skill_activated)");
+                     AddLogCheckbox("Finishes##AttackSkill", &log_attack_skill_finishes, "Handler: ObserverStoC::handleAttackSkillFinished\nPacket/Value ID: 0x55 with value 4 (attack_skill_finished)");
+                     AddLogCheckbox("Stops##AttackSkill", &log_attack_skill_stops, "Handler: ObserverStoC::handleAttackSkillStopped\nPacket/Value ID: 0x56 with value 4 (attack_skill_stopped)");
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Basic Attack Events")) {
+                    AddLogCheckbox("Starts##BasicAttack", &log_basic_attack_starts, "Handler: ObserverStoC::handleAttackStarted\nPacket/Value ID: 0x56/0x55 with value 13 (attack_started)");
+                    AddLogCheckbox("Finishes##BasicAttack", &log_basic_attack_finishes, "Handler: ObserverStoC::handleAttackFinished\nPacket/Value ID: 0x55 with value 14 (melee_attack_finished)");
+                    AddLogCheckbox("Stops##BasicAttack", &log_basic_attack_stops, "Handler: ObserverStoC::handleAttackStopped\nPacket/Value ID: 0x56 with value 14 (attack_stopped)");
+                   ImGui::TreePop();
+                }
+                
+                if (ImGui::TreeNode("Combat Events")) {
+                    AddLogCheckbox("Damage", &log_damage, "Handler: ObserverStoC::handleDamage\nPacket/Type ID: 0x57 with type 1 (damage), 2 (critical), 3 (armorignoring)");
+                    AddLogCheckbox("Interrupts", &log_interrupts, "Handler: ObserverStoC::handleInterrupted\nPacket/Value ID: 0x55 with value 15 (interrupted)");
+                    AddLogCheckbox("Knockdowns", &log_knockdowns, "Handler: ObserverStoC::handleKnockdown\nPacket/Type ID: 0x57 with type 4 (knocked_down)");
+                    ImGui::TreePop();
+                }
+
+                if (ImGui::TreeNode("Agent Events")) {
+                    AddLogCheckbox("Movement", &log_movement, "Handler: ObserverStoC::handleAgentMovement\nPacket Header: GAME_SMSG_AGENT_MOVE_TO_POINT (0x29)");
+                    ImGui::TreePop();
+                }
+
+                ImGui::Unindent();
             }
-            ImGui::Checkbox("Skill Finishes", &log_skill_finishes);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleSkillFinished\nPacket/Value ID: 0x55 with value 2 (skill_finished)");
-            }
-            ImGui::Checkbox("Skill Stops", &log_skill_stops);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleSkillStopped\nPacket/Value ID: 0x56 with value 2 (skill_stopped)");
-            }
-            ImGui::Checkbox("Attack Skill Activations", &log_attack_skill_activations);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackSkillActivated\nPacket/Value ID: 0x56/0x55 with value 3 (attack_skill_activated)");
-            }
-            ImGui::Checkbox("Attack Skill Finishes", &log_attack_skill_finishes);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackSkillFinished\nPacket/Value ID: 0x55 with value 4 (attack_skill_finished)");
-            }
-            ImGui::Checkbox("Attack Skill Stops", &log_attack_skill_stops);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackSkillStopped\nPacket/Value ID: 0x56 with value 4 (attack_skill_stopped)");
-            }
-            ImGui::Checkbox("Basic Attack Starts", &log_basic_attack_starts);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackStarted\nPacket/Value ID: 0x56/0x55 with value 13 (attack_started)");
-            }
-            ImGui::Checkbox("Basic Attack Finishes", &log_basic_attack_finishes);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackFinished\nPacket/Value ID: 0x55 with value 14 (melee_attack_finished)");
-            }
-            ImGui::Checkbox("Basic Attack Stops", &log_basic_attack_stops);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAttackStopped\nPacket/Value ID: 0x56 with value 14 (attack_stopped)");
-            }
-            ImGui::Checkbox("Interrupts", &log_interrupts);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleInterrupted\nPacket/Value ID: 0x55 with value 15 (interrupted)");
-            }
-            ImGui::Checkbox("Instant Skills", &log_instant_skills);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleInstantSkillActivated\nPacket/Value ID: 0x56 with value 5 (instant_skill_activated)");
-            }
-            ImGui::Checkbox("Damage Events", &log_damage);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleDamage\nPacket/Type ID: 0x57 with type 1 (damage), 2 (critical), 3 (armorignoring)");
-            }
-            ImGui::Checkbox("Knockdowns", &log_knockdowns);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleKnockdown\nPacket/Type ID: 0x57 with type 4 (knocked_down)");
-            }
-            ImGui::Checkbox("Agent Movement", &log_movement);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Handler: ObserverStoC::handleAgentMovement\nPacket Header: GAME_SMSG_AGENT_MOVE_TO_POINT (0x29)");
-            }
-            ImGui::Unindent();
         }
     }
     ImGui::End();

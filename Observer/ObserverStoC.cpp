@@ -20,7 +20,7 @@ void ObserverStoC::RegisterCallbacks() {
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericModifier>(
         &GenericModifier_Entry,
         [this](const GW::HookStatus*, const GW::Packet::StoC::GenericModifier* packet) -> void {
-            if (!owner || !owner->enabled) return;
+            if (!owner || !owner->stoc_status) return;
 
             const uint32_t value_id = packet->type;
             const uint32_t caster_id = packet->cause_id;
@@ -35,7 +35,7 @@ void ObserverStoC::RegisterCallbacks() {
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValueTarget>(
         &GenericValueTarget_Entry,
         [this](const GW::HookStatus*, const GW::Packet::StoC::GenericValueTarget* packet) -> void {
-            if (!owner || !owner->enabled) return;
+            if (!owner || !owner->stoc_status) return;
 
             const uint32_t value_id = packet->Value_id;
             const uint32_t caster_id = packet->caster;
@@ -50,7 +50,7 @@ void ObserverStoC::RegisterCallbacks() {
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericValue>(
         &GenericValue_Entry,
         [this](const GW::HookStatus*, const GW::Packet::StoC::GenericValue* packet) -> void {
-            if (!owner || !owner->enabled) return;
+            if (!owner || !owner->stoc_status) return;
 
             const uint32_t value_id = packet->value_id;
             const uint32_t caster_id = packet->agent_id;
@@ -65,7 +65,7 @@ void ObserverStoC::RegisterCallbacks() {
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericFloat>(
         &GenericFloat_Entry, 
         [this](const GW::HookStatus*, const GW::Packet::StoC::GenericFloat* packet) -> void {
-            if (!owner || !owner->enabled) return;
+            if (!owner || !owner->stoc_status) return;
 
             const uint32_t value_id = packet->type;
             const uint32_t caster_id = packet->agent_id;
@@ -81,7 +81,7 @@ void ObserverStoC::RegisterCallbacks() {
         &AgentMovement_Entry, 
         GAME_SMSG_AGENT_MOVE_TO_POINT,
         [this](const GW::HookStatus*, GW::Packet::StoC::PacketBase* pak) -> void {
-            if (!owner || !owner->enabled || !owner->log_movement) return;
+            if (!owner || !owner->stoc_status || !owner->log_movement) return;
             
             // position packet structure : (maybe more infos in GWCA)
 
@@ -261,7 +261,7 @@ void ObserverStoC::logActionCompletion(uint32_t caster_id, const wchar_t* comple
 }
 
 void ObserverStoC::handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane) {
-    if (!owner->log_movement) return;
+    if (!owner || !owner->stoc_status || !owner->log_movement) return;
     
     wchar_t buffer[128];
     swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Agent Movement: ID %u to position (%.2f, %.2f) on plane %u", agent_id, x, y, plane);
@@ -269,16 +269,19 @@ void ObserverStoC::handleAgentMovement(uint32_t agent_id, float x, float y, uint
 }
 
 void ObserverStoC::handleSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_skill_activations) return;
     logActionActivation(caster_id, target_id, skill_id, no_target, L"Skill Activated: ID %u by %u on %u");
 }
 
 void ObserverStoC::handleAttackSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_attack_skill_activations) return;
     logActionActivation(caster_id, target_id, skill_id, no_target, L"Attack Skill Activated: ID %u by %u on %u");
 }
 
 void ObserverStoC::handleInstantSkillActivated(uint32_t caster_id, uint32_t skill_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_instant_skills) return;
     // instant skills don't store state in agent_active_action and target is usually the caster.
     wchar_t buffer[128];
@@ -287,47 +290,56 @@ void ObserverStoC::handleInstantSkillActivated(uint32_t caster_id, uint32_t skil
 }
 
 void ObserverStoC::handleAttackStarted(uint32_t caster_id, uint32_t target_id, bool no_target) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_basic_attack_starts) return;
     // use attack_started value_id as a placeholder skill_id to trigger basic attack logging format in helper
     logActionActivation(caster_id, target_id, static_cast<uint32_t>(GW::Packet::StoC::GenericValueID::attack_started), no_target, L"Attack Started: by %u on %u");
 }
 
 void ObserverStoC::handleAttackStopped(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_basic_attack_stops) return;
     logActionCompletion(caster_id, L"Attack Stopped: by %u on %u", L"Attack Stopped: by %u");
 }
 
 void ObserverStoC::handleSkillFinished(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_skill_finishes) return;
     logActionCompletion(caster_id, L"Skill Finished: ID %u by %u on %u", L"Skill Finished: (Unknown Skill) by %u");
 }
 
 void ObserverStoC::handleSkillStopped(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_skill_stops) return;
     logActionCompletion(caster_id, L"Skill Stopped: ID %u by %u on %u", L"Skill Stopped: (Unknown Skill) by %u");
 }
 
 void ObserverStoC::handleInterrupted(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_interrupts) return;
     logActionCompletion(caster_id, L"Interrupted: Skill %u by %u on %u", L"Interrupted: (Unknown Skill) by %u");
 }
 
 void ObserverStoC::handleAttackSkillStopped(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_attack_skill_stops) return;
     logActionCompletion(caster_id, L"Attack Skill Stopped: ID %u by %u on %u", L"Attack Skill Stopped: (Unknown Skill) by %u");
 }
 
 void ObserverStoC::handleAttackSkillFinished(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_attack_skill_finishes) return;
     logActionCompletion(caster_id, L"Attack Skill Finished: ID %u by %u on %u", L"Attack Skill Finished: (Unknown Skill) by %u");
 }
 
 void ObserverStoC::handleAttackFinished(uint32_t caster_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_basic_attack_finishes) return;
     logActionCompletion(caster_id, L"Attack Finished: by %u on %u", L"Attack Finished: by %u");
 }
 
 void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_damage) return;
     
     const wchar_t* damage_type_str = L"Normal";
@@ -343,6 +355,7 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
 }
 
 void ObserverStoC::handleKnockdown(uint32_t cause_id, uint32_t target_id) {
+    if (!owner || !owner->stoc_status) return;
     if (!owner->log_knockdowns) return;
     wchar_t buffer[128];
     // note: cause_id might not always be the direct cause, but it's the agent ID associated with the packet.
