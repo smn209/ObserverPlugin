@@ -38,6 +38,7 @@ public:
     bool log_instant_skills = true;
     bool log_damage = true;
     bool log_knockdowns = true;
+    bool log_movement = true;
 
 private:
 };

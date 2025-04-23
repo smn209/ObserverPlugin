@@ -75,6 +75,32 @@ void ObserverStoC::RegisterCallbacks() {
             handleGenericPacket(value_id, caster_id, target_id, value, no_target);
         }
     );
+    
+    // Agent Position Updates (MOVE_TO_POINT 0x29)
+    GW::StoC::RegisterPacketCallback(
+        &AgentMovement_Entry, 
+        GAME_SMSG_AGENT_MOVE_TO_POINT,
+        [this](const GW::HookStatus*, GW::Packet::StoC::PacketBase* pak) -> void {
+            if (!owner || !owner->enabled || !owner->log_movement) return;
+            
+            // Cast the packet base to a pointer we can work with
+            // The position packet structure is:
+            // uint32_t header; (already in PacketBase)
+            // uint32_t agent_id; (DWORD)
+            // float x; (Vec2 - first coordinate)
+            // float y; (Vec2 - second coordinate)
+            // uint16_t word1; (Additional data - possibly plane)
+            // uint16_t word2; (Additional data)
+            uint32_t* data = (uint32_t*)pak;
+            uint32_t agent_id = data[1];
+            float x = *(float*)(&data[2]);
+            float y = *(float*)(&data[3]);
+            uint16_t* word_data = (uint16_t*)(&data[4]);
+            uint16_t plane = word_data[0];
+            
+            handleAgentMovement(agent_id, x, y, plane);
+        }
+    );
 }
 
 void ObserverStoC::RemoveCallbacks() {
@@ -83,6 +109,7 @@ void ObserverStoC::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericValue>(&GenericValue_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericModifier>(&GenericModifier_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericFloat>(&GenericFloat_Entry);
+    GW::StoC::RemoveCallback(GAME_SMSG_AGENT_MOVE_TO_POINT, &AgentMovement_Entry);
 
     cleanupAgentActions(); // clean up map pointers before clearing the map itself
 }
@@ -229,6 +256,14 @@ void ObserverStoC::logActionCompletion(uint32_t caster_id, const wchar_t* comple
         // action info not found (e.g., stop packet without preceding start), log with unknown skill/target format
         swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), unknown_desc_format, caster_id);
     }
+    GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
+}
+
+void ObserverStoC::handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane) {
+    if (!owner->log_movement) return;
+    
+    wchar_t buffer[128];
+    swprintf(buffer, sizeof(buffer)/sizeof(wchar_t), L"Agent Movement: ID %u to position (%.2f, %.2f) on plane %u", agent_id, x, y, plane);
     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, buffer);
 }
 

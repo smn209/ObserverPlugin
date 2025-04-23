@@ -44,6 +44,7 @@ void ObserverPlugin::LoadSettings(
     PLUGIN_LOAD_BOOL(log_instant_skills);
     PLUGIN_LOAD_BOOL(log_damage);
     PLUGIN_LOAD_BOOL(log_knockdowns);
+    PLUGIN_LOAD_BOOL(log_movement);
     ToolboxPlugin::SaveSettings(folder);
 }
 
@@ -66,6 +67,7 @@ void ObserverPlugin::SaveSettings(
     PLUGIN_SAVE_BOOL(log_instant_skills);
     PLUGIN_SAVE_BOOL(log_damage);
     PLUGIN_SAVE_BOOL(log_knockdowns);
+    PLUGIN_SAVE_BOOL(log_movement);
     ToolboxPlugin::SaveSettings(folder);
 }
 
@@ -97,6 +99,7 @@ void ObserverPlugin::DrawSettings()
         ImGui::Checkbox("Instant Skills", &log_instant_skills);
         ImGui::Checkbox("Damage Events", &log_damage);
         ImGui::Checkbox("Knockdowns", &log_knockdowns);
+        ImGui::Checkbox("Agent Movement", &log_movement);
         ImGui::Unindent();
     }
 }
