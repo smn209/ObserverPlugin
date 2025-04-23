@@ -67,7 +67,7 @@ This section outlines the planned development milestones for the Observer Plugin
 | 0.6     | Capture and export Jumbo Messages (e.g., Victory, Morale Boost).   |   |
 | 0.7     | Identify and record match metadata (Teams, Guilds, Map Info).      |   |
 | 0.8     | Allow exporting either summary info or the full match data.        |   |
-| 0.9     | *(Reserved for further development)*                               |   |
+| 0.9     | Agents effects (Poison, Deep wounds) on event start/left.          |   |
 | **1.0** | **Stable Release:** Reliable export of comprehensive match data.   |   |
 
 **Future Enhancements & Ideas:**

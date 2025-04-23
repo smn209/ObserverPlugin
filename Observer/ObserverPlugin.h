@@ -1,30 +1,31 @@
 #pragma once
 
-#include <ToolboxUIPlugin.h>
+#include <ToolboxUIPlugin.h> 
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Packets/StoC.h>
 
 class ObserverStoC;
 
-class ObserverPlugin : public ToolboxPlugin {
+class ObserverPlugin : public ToolboxUIPlugin {
 public:
     ObserverPlugin();
-    ~ObserverPlugin() override = default;
+    ~ObserverPlugin() override;
 
     const char* Name() const override { return "Observer Plugin"; }
 
-    void LoadSettings(const wchar_t*) override;
-    void SaveSettings(const wchar_t*) override;
-    [[nodiscard]] bool HasSettings() const override { return true; }
-    void DrawSettings() override;
+    // plugin lifecycle functions
     void Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll) override;
     void SignalTerminate() override;
-    bool CanTerminate() override;
     void Draw(IDirect3DDevice9* pDevice) override;
+
+    // settings load/save/draw
+    void LoadSettings(const wchar_t*) override;
+    void SaveSettings(const wchar_t*) override;
+    void DrawSettings() override; // draws generic UI settings in the main panel
 
     ObserverStoC* stoc_handler = nullptr;
 
-    bool enabled = true;
+    bool enabled = true; // master toggle
     bool log_skill_activations = true;
     bool log_skill_finishes = true;
     bool log_skill_stops = true;
@@ -41,4 +42,5 @@ public:
     bool log_movement = true;
 
 private:
+    // visibility state is handled by plugin_visible in ToolboxUIPlugin base class
 };

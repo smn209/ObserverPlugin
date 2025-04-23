@@ -14,6 +14,7 @@ struct ActiveActionInfo {
     uint32_t target_id = 0;
 };
 
+// handles server-to-client (StoC) packet callbacks for the observer plugin
 class ObserverStoC {
 public:
     ObserverStoC(ObserverPlugin* owner_plugin);
@@ -23,13 +24,12 @@ public:
     void RemoveCallbacks();
 
 private:
-    ObserverPlugin* owner;
+    ObserverPlugin* owner; // pointer back to the main plugin instance
     
-    // map to track the currently active action (skill/target) for each agent (caster)
-    // stores pointers, so needs careful memory management.
+    // map to track the currently active action (skill/target) for each agent
     std::unordered_map<uint32_t, ActiveActionInfo*> agent_active_action;
     
-    // hook entries for the four types of Generic packets
+    // hook entries for packet callbacks
     GW::HookEntry GenericValueTarget_Entry;
     GW::HookEntry GenericValue_Entry;
     GW::HookEntry GenericModifier_Entry;
@@ -54,7 +54,7 @@ private:
     void handleAttackFinished(uint32_t caster_id);
     void handleDamage(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type);
     void handleKnockdown(uint32_t cause_id, uint32_t target_id);
-    void handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane = 0); 
+    void handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane); 
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,
