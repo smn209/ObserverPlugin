@@ -27,8 +27,6 @@ If you wish to contribute or build the plugin from the source code, follow these
 ```c++
 add_library(Observer SHARED)
 target_sources(Observer PRIVATE
-    "plugins/Observer/ObserverUtils.h"
-    "plugins/Observer/ObserverUtils.cpp"
     "plugins/Observer/ObserverStoC.cpp"
     "plugins/Observer/ObserverStoC.h"
     "plugins/Observer/ObserverPlugin.cpp"

@@ -5,7 +5,6 @@
 #include <GWCA/Packets/StoC.h>
 
 class ObserverStoC;
-class ObserverUtils;
 
 class ObserverPlugin : public ToolboxPlugin {
 public:
@@ -23,16 +22,22 @@ public:
     bool CanTerminate() override;
     void Draw(IDirect3DDevice9* pDevice) override;
 
+    ObserverStoC* stoc_handler = nullptr;
+
     bool enabled = true;
     bool log_skill_activations = true;
     bool log_skill_finishes = true;
-    bool log_attack_skills = true;
+    bool log_skill_stops = true;
+    bool log_attack_skill_activations = true;
+    bool log_attack_skill_finishes = true;
+    bool log_attack_skill_stops = true;
+    bool log_basic_attack_starts = true;
+    bool log_basic_attack_finishes = true;
+    bool log_basic_attack_stops = true;
     bool log_interrupts = true;
     bool log_instant_skills = true;
     bool log_damage = true;
     bool log_knockdowns = true;
 
 private:
-    ObserverStoC* stoc_handler; //
-    ObserverUtils* utils;
 };

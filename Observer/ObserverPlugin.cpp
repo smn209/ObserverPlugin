@@ -1,6 +1,5 @@
 #include "ObserverPlugin.h"
 #include "ObserverStoC.h"
-#include "ObserverUtils.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/MapMgr.h>
@@ -17,7 +16,6 @@
 ObserverPlugin::ObserverPlugin()
 {
     stoc_handler = new ObserverStoC(this);
-    utils = new ObserverUtils(this);
 }
 
 DLLAPI ToolboxPlugin* ToolboxPluginInstance()
@@ -35,7 +33,13 @@ void ObserverPlugin::LoadSettings(
     PLUGIN_LOAD_BOOL(enabled);
     PLUGIN_LOAD_BOOL(log_skill_activations);
     PLUGIN_LOAD_BOOL(log_skill_finishes);
-    PLUGIN_LOAD_BOOL(log_attack_skills);
+    PLUGIN_LOAD_BOOL(log_skill_stops);
+    PLUGIN_LOAD_BOOL(log_attack_skill_activations);
+    PLUGIN_LOAD_BOOL(log_attack_skill_finishes);
+    PLUGIN_LOAD_BOOL(log_attack_skill_stops);
+    PLUGIN_LOAD_BOOL(log_basic_attack_starts);
+    PLUGIN_LOAD_BOOL(log_basic_attack_finishes);
+    PLUGIN_LOAD_BOOL(log_basic_attack_stops);
     PLUGIN_LOAD_BOOL(log_interrupts);
     PLUGIN_LOAD_BOOL(log_instant_skills);
     PLUGIN_LOAD_BOOL(log_damage);
@@ -51,7 +55,13 @@ void ObserverPlugin::SaveSettings(
     PLUGIN_SAVE_BOOL(enabled);
     PLUGIN_SAVE_BOOL(log_skill_activations);
     PLUGIN_SAVE_BOOL(log_skill_finishes);
-    PLUGIN_SAVE_BOOL(log_attack_skills);
+    PLUGIN_SAVE_BOOL(log_skill_stops);
+    PLUGIN_SAVE_BOOL(log_attack_skill_activations);
+    PLUGIN_SAVE_BOOL(log_attack_skill_finishes);
+    PLUGIN_SAVE_BOOL(log_attack_skill_stops);
+    PLUGIN_SAVE_BOOL(log_basic_attack_starts);
+    PLUGIN_SAVE_BOOL(log_basic_attack_finishes);
+    PLUGIN_SAVE_BOOL(log_basic_attack_stops);
     PLUGIN_SAVE_BOOL(log_interrupts);
     PLUGIN_SAVE_BOOL(log_instant_skills);
     PLUGIN_SAVE_BOOL(log_damage);
@@ -76,7 +86,13 @@ void ObserverPlugin::DrawSettings()
         ImGui::Text("Log Options:");
         ImGui::Checkbox("Skill Activations", &log_skill_activations);
         ImGui::Checkbox("Skill Finishes", &log_skill_finishes);
-        ImGui::Checkbox("Attack Skills", &log_attack_skills);
+        ImGui::Checkbox("Skill Stops", &log_skill_stops);
+        ImGui::Checkbox("Attack Skill Activations", &log_attack_skill_activations);
+        ImGui::Checkbox("Attack Skill Finishes", &log_attack_skill_finishes);
+        ImGui::Checkbox("Attack Skill Stops", &log_attack_skill_stops);
+        ImGui::Checkbox("Basic Attack Starts", &log_basic_attack_starts);
+        ImGui::Checkbox("Basic Attack Finishes", &log_basic_attack_finishes);
+        ImGui::Checkbox("Basic Attack Stops", &log_basic_attack_stops);
         ImGui::Checkbox("Interrupts", &log_interrupts);
         ImGui::Checkbox("Instant Skills", &log_instant_skills);
         ImGui::Checkbox("Damage Events", &log_damage);
@@ -106,7 +122,6 @@ void ObserverPlugin::SignalTerminate()
     stoc_handler->RemoveCallbacks(); // remove the callbacks (from ObserverStoC)
     
     delete stoc_handler; // delete the stoc handler
-    delete utils; // delete the utils
 }
 
 bool ObserverPlugin::CanTerminate()
