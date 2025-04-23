@@ -1,5 +1,6 @@
 #include "ObserverPlugin.h"
 #include "ObserverStoC.h"
+#include "ObserverMatch.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/MapMgr.h>
@@ -17,18 +18,23 @@
 ObserverPlugin::ObserverPlugin()
 {
     stoc_handler = new ObserverStoC(this);
+    match_handler = new ObserverMatch();
     // configure base UI plugin behavior
     can_show_in_main_window = true;
     can_close = true;
     show_menubutton = true;
 }
 
-// destructor needs to be defined if we manually delete stoc_handler
+// destructor needs to be defined if we manually delete handlers
 ObserverPlugin::~ObserverPlugin()
 {
     if (stoc_handler) {
         delete stoc_handler;
         stoc_handler = nullptr;
+    }
+    if (match_handler) {
+        delete match_handler;
+        match_handler = nullptr;
     }
 }
 
@@ -100,14 +106,18 @@ void ObserverPlugin::Initialize(
 {
     ToolboxUIPlugin::Initialize(ctx, allocator_fns, toolbox_dll); // initialize base first
     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Observer Plugin initialized!"); 
-    stoc_handler->RegisterCallbacks(); // register packet callbacks
+    stoc_handler->RegisterCallbacks(); // register packet callbacks for main handler
+    match_handler->RegisterCallbacks(); // register packet callbacks for match handler
 }
 
 void ObserverPlugin::SignalTerminate()
 {
     ToolboxUIPlugin::SignalTerminate(); // signal base first
     if (stoc_handler) { 
-        stoc_handler->RemoveCallbacks(); // remove packet callbacks
+        stoc_handler->RemoveCallbacks(); // remove packet callbacks for main handler
+    }
+    if (match_handler) {
+        match_handler->RemoveCallbacks();
     }
 }
 
@@ -123,6 +133,14 @@ void ObserverPlugin::Draw(
     
     // draw the observer window content
     if (ImGui::Begin(Name(), is_visible_ptr, GetWinFlags())) {
+        // display observer status
+        if (match_handler && match_handler->IsObserving()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), "OBSERVER MODE ACTIVE");
+            ImGui::Separator();
+        }else{
+            ImGui::TextColored(ImVec4(0.0f, 0.0f, 1.0f, 1.0f), "NOT OBSERVING");
+        }
+
         ImGui::Checkbox("Enable Skill Logging", &enabled);
         ImGui::SameLine(); 
         ImGui::TextDisabled("(Master Toggle)");

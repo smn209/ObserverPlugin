@@ -4,6 +4,8 @@
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Packets/StoC.h>
 
+#include "ObserverMatch.h"
+
 class ObserverStoC;
 
 class ObserverPlugin : public ToolboxUIPlugin {
@@ -24,6 +26,7 @@ public:
     void DrawSettings() override; // draws generic UI settings in the main panel
 
     ObserverStoC* stoc_handler = nullptr;
+    ObserverMatch* match_handler = nullptr;
 
     bool enabled = true; // master toggle
     bool log_skill_activations = true;

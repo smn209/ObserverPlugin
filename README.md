@@ -29,6 +29,8 @@ add_library(Observer SHARED)
 target_sources(Observer PRIVATE
     "plugins/Observer/ObserverStoC.cpp"
     "plugins/Observer/ObserverStoC.h"
+    "plugins/Observer/ObserverMatch.cpp"
+    "plugins/Observer/ObserverMatch.h"
     "plugins/Observer/ObserverPlugin.cpp"
     "plugins/Observer/ObserverPlugin.h"
     "plugins/Observer/dllmain.cpp"
@@ -51,6 +53,9 @@ target_link_options(Observer PRIVATE $<$<CONFIG:RelWithDebInfo>:/OPT:NOICF>)
 set_target_properties(Observer PROPERTIES FOLDER "plugins/")
 
 ```
+
+> [!CAUTION]
+> Some source files depend on **Base** sources (e.g., `../Base/stl.h`). Ensure your directory structure is correct when building to avoid compilation errors.
 
 ## Roadmap
 
