@@ -2,6 +2,7 @@
 #include "ObserverStoC.h"
 #include "ObserverMatch.h"
 #include "ObserverCapture.h"
+#include "ObserverLoop.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/MapMgr.h>
@@ -27,6 +28,7 @@ ObserverPlugin::ObserverPlugin()
     match_handler = new ObserverMatch(stoc_handler);
     match_handler->SetOwnerPlugin(this);
     capture_handler = new ObserverCapture();
+    loop_handler = new ObserverLoop(this);
 
     // generate an initial default folder name based on current time
     GenerateDefaultFolderName();
@@ -54,6 +56,10 @@ ObserverPlugin::~ObserverPlugin()
     if (capture_handler) {
         delete capture_handler;
         capture_handler = nullptr;
+    }
+    if (loop_handler) {
+        delete loop_handler;
+        loop_handler = nullptr;
     }
 }
 
@@ -91,6 +97,9 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_jumbo_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_flawless_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_unknown);
+    
+    // load agent loop settings
+    // PLUGIN_LOAD_BOOL(agent_loop_enabled); // Removed
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
@@ -121,6 +130,9 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_jumbo_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_flawless_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_unknown);
+    
+    // save agent loop settings
+    // PLUGIN_SAVE_BOOL(agent_loop_enabled); // Removed
 }
 
 // draws the generic UI settings in the main settings panel
@@ -148,6 +160,9 @@ void ObserverPlugin::SignalTerminate()
     if (match_handler) {
         match_handler->RemoveCallbacks(); // this will now also handle removing stoc callbacks if needed
     }
+    if (loop_handler) {
+        loop_handler->Stop(); // ensure agent loop is stopped
+    }
 }
 
 // main draw function, called every frame
@@ -159,12 +174,14 @@ void ObserverPlugin::Draw(
     bool* is_visible_ptr = GetVisiblePtr(); 
     if (!is_visible_ptr || !(*is_visible_ptr)) return; // exit if window not visible
     
-    ImGui::SetNextWindowSize(ImVec2(350, 450), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(350, 500), ImGuiCond_FirstUseEver);
     
     // draw the observer window content
     if (ImGui::Begin(Name(), is_visible_ptr, GetWinFlags())) {
         // display observer status based on match handler flag
-        if (match_handler && match_handler->IsObserving()) {
+        bool is_observing = match_handler && match_handler->IsObserving();
+        
+        if (is_observing) {
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "OBSERVER MODE ACTIVE");
         } else {
             ImGui::TextDisabled("NOT OBSERVING");
@@ -172,7 +189,7 @@ void ObserverPlugin::Draw(
         
         // display log stats and export controls
         ImGui::Separator();
-        ImGui::Text("Logs: %zu entries", capture_handler ? capture_handler->GetLogCount() : 0);
+        ImGui::Text("StoC Logs: %zu entries", capture_handler ? capture_handler->GetLogCount() : 0);
 
         // export folder name input
         ImGui::InputText("Match Name", export_folder_name, sizeof(export_folder_name));
@@ -211,7 +228,7 @@ void ObserverPlugin::Draw(
         ImGui::SameLine();
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Export: Save categorized logs to captures/<Match Name>/StoC/\nClear: Remove all current log entries and reset Match Name.");
+            ImGui::SetTooltip("Export: Save logs to captures/<Match Name>/\nClear: Remove all current log entries and reset Match Name.");
         }
 
         ImGui::Separator();
@@ -220,7 +237,7 @@ void ObserverPlugin::Draw(
         ImGui::SameLine(); 
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Master toggle for in-game display of logs.\nAll events are still recorded internally and exported regardless of this setting.");
+            ImGui::SetTooltip("Master toggle for in-game display of StoC logs.\nAll events are still recorded internally and exported regardless of this setting.");
         }
         
         if (stoc_status)

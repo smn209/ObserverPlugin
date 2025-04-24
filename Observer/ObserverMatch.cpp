@@ -28,6 +28,12 @@ void ObserverMatch::RemoveCallbacks() {
     // also ensure StoC callbacks are removed if we are currently observing
     if (is_observing && stoc_handler_) {
         stoc_handler_->RemoveCallbacks();
+        
+        // stop agent loop when leaving observer mode
+        if (owner_plugin && owner_plugin->loop_handler) {
+            owner_plugin->loop_handler->Stop();
+        }
+        
         is_observing = false; 
     }
 }
@@ -52,10 +58,20 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
         }
         
         stoc_handler_->RegisterCallbacks();
+        
+        // start agent loop if enabled
+        if (owner_plugin && owner_plugin->loop_handler) {
+            owner_plugin->loop_handler->Start();
+        }
     } else if (!is_observing && was_observing) {
         // exited observer mode
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Exited Observer Mode instance. Removing StoC callbacks.");
         stoc_handler_->RemoveCallbacks();
+        
+        // stop agent loop
+        if (owner_plugin && owner_plugin->loop_handler) {
+            owner_plugin->loop_handler->Stop();
+        }
     } else if (is_observing) {
         // still observing (e.g., map change within observer mode)
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Still in Observer Mode instance.");

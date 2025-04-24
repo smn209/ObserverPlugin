@@ -11,6 +11,7 @@
 
 #include "ObserverMatch.h"
 #include "ObserverCapture.h"
+#include "ObserverLoop.h"
 
 class ObserverStoC;
 
@@ -36,6 +37,7 @@ public:
     ObserverStoC* stoc_handler = nullptr;
     ObserverMatch* match_handler = nullptr;
     ObserverCapture* capture_handler = nullptr;
+    ObserverLoop* loop_handler = nullptr;
 
     // proxy methods for log capture
     void AddLogEntry(const wchar_t* entry) { 
@@ -44,10 +46,13 @@ public:
     
     void ClearLogs() { 
         if (capture_handler) capture_handler->ClearLogs(); 
+        if (loop_handler) loop_handler->ClearAgentLogs();
     }
     
     bool ExportLogsToFolder(const wchar_t* folder_name) {
-        return capture_handler ? capture_handler->ExportLogsToFolder(folder_name) : false;
+        bool stoc_success = capture_handler ? capture_handler->ExportLogsToFolder(folder_name) : false;
+        bool agent_success = loop_handler ? loop_handler->ExportAgentLogs(folder_name) : false;
+        return stoc_success || agent_success;
     }
 
     bool stoc_status = false; // master toggle 

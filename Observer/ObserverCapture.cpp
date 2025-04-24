@@ -217,7 +217,7 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
         WriteCompressedFile(stoc_dir / "jumbo_messages.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"jumbo"].str())));
         WriteCompressedFile(stoc_dir / "unknown_events.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"unknown"].str())));
 
-        std::wstring success_msg = L"Logs exported and compressed to folder: ";
+        std::wstring success_msg = L"StoC logs exported and compressed to folder: ";
         success_msg += abs_match_path.wstring();
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, success_msg.c_str());
 
