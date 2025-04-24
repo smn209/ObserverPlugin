@@ -7,6 +7,19 @@
 
 class ObserverPlugin;
 
+extern const wchar_t* MARKER_SKILL_EVENT;
+extern const size_t MARKER_SKILL_EVENT_LEN;
+extern const wchar_t* MARKER_ATTACK_SKILL_EVENT;
+extern const size_t MARKER_ATTACK_SKILL_EVENT_LEN;
+extern const wchar_t* MARKER_BASIC_ATTACK_EVENT;
+extern const size_t MARKER_BASIC_ATTACK_EVENT_LEN;
+extern const wchar_t* MARKER_COMBAT_EVENT;
+extern const size_t MARKER_COMBAT_EVENT_LEN;
+extern const wchar_t* MARKER_AGENT_EVENT;
+extern const size_t MARKER_AGENT_EVENT_LEN;
+extern const wchar_t* MARKER_JUMBO_EVENT;
+extern const size_t MARKER_JUMBO_EVENT_LEN;
+
 // struct to store active action details (skill and target)
 // similar concept to ObserverModule::TargetAction but simplified for logging needs
 struct ActiveActionInfo {
@@ -37,11 +50,11 @@ private:
     GW::HookEntry AgentMovement_Entry;
     GW::HookEntry JumboMessage_Entry;
     
-    // common handler methods for Generic packets (similar to ObserverModule)
+    // common handlers dispatch generic packet data based on value_id
     void handleGenericPacket(uint32_t value_id, uint32_t caster_id, uint32_t target_id, uint32_t value, bool no_target);
     void handleGenericPacket(uint32_t value_id, uint32_t caster_id, uint32_t target_id, float value, bool no_target);
     
-    // specific handlers for various events
+    // specific handlers for different game events derived from generic packets
     void handleSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target);
     void handleSkillFinished(uint32_t caster_id);
     void handleAttackSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target);
@@ -60,8 +73,10 @@ private:
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,
-                             bool no_target, const wchar_t* action_desc_format);
-    void logActionCompletion(uint32_t caster_id, const wchar_t* completion_desc_format,
-                             const wchar_t* unknown_desc_format);
+                             bool no_target, const wchar_t* action_desc_format,
+                             const wchar_t* category_marker);
+    void logActionCompletion(uint32_t caster_id, const wchar_t* action_identifier, 
+                             uint32_t value_id, 
+                             const wchar_t* category_marker);
     void cleanupAgentActions(); 
 };

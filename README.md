@@ -31,6 +31,8 @@ target_sources(Observer PRIVATE
     "plugins/Observer/ObserverStoC.h"
     "plugins/Observer/ObserverMatch.cpp"
     "plugins/Observer/ObserverMatch.h"
+    "plugins/Observer/ObserverCapture.cpp"
+    "plugins/Observer/ObserverCapture.h"
     "plugins/Observer/ObserverPlugin.cpp"
     "plugins/Observer/ObserverPlugin.h"
     "plugins/Observer/dllmain.cpp"
