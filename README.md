@@ -36,6 +36,8 @@ target_sources(Observer PRIVATE
     "plugins/Observer/ObserverMatch.h"
     "plugins/Observer/ObserverCapture.cpp"
     "plugins/Observer/ObserverCapture.h"
+    "plugins/Observer/ObserverLoop.cpp"
+    "plugins/Observer/ObserverLoop.h"
     "plugins/Observer/ObserverPlugin.cpp"
     "plugins/Observer/ObserverPlugin.h"
     "plugins/Observer/dllmain.cpp"
@@ -74,7 +76,7 @@ This section outlines the planned development milestones for the Observer Plugin
 | 0.2     | Implement initial match recognition logic.                         | Yes  |
 | 0.3     | Filter StoC packet logging to only record during active matches.   | Yes  |
 | 0.4     | Capture and export Jumbo Messages (e.g., Victory, Morale Boost).   | Yes  |
-| 0.5     | Implement export functionality for all StoC packets within a match.|   |
+| 0.5     | Implement export functionality for all StoC packets within a match.| Yes  |
 | 0.6     | Identify and record match metadata (Teams, Guilds, Map Info).      |   |
 | 0.7     | Allow exporting either summary info or the full match data.        |   |
 | 0.8     | Agents effects (Poison, Deep wounds) on event start/left.          |   |
