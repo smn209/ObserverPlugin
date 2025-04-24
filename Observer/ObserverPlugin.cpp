@@ -241,6 +241,11 @@ void ObserverPlugin::Draw(
             ImGui::TreePop(); 
         }
 
+        // note about data persistence
+        ImGui::Separator();
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); 
+        ImGui::TextWrapped("Note: Captured match data (StoC events & Agent states) remains in memory after observer mode ends. You can still export the previous match using the 'Export' button above. Data will be cleared automatically when a new observer session begins.");
+        ImGui::PopStyleColor();
         ImGui::Separator();
 
         if (ImGui::TreeNodeEx("Capture Status", ImGuiTreeNodeFlags_DefaultOpen)) 
