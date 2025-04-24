@@ -25,6 +25,9 @@ If you wish to contribute or build the plugin from the source code, follow these
 2.  **Clone the Repository:** Clone this Observer Plugin repository into the `plugins/` subdirectory of your GWToolbox++ source directory (e.g., `path/to/GWToolboxpp/plugins/ObserverPlugin`).
 3.  **Update CMake Configuration:** Modify the `GWToolboxpp/cmake/gwtoolboxdll_plugins.cmake` file by adding the following configuration block to register the plugin with the build system:
 ```c++
+
+find_package(ZLIB REQUIRED) # You wanna need this for compression of exports
+
 add_library(Observer SHARED)
 target_sources(Observer PRIVATE
     "plugins/Observer/ObserverStoC.cpp"
@@ -42,8 +45,9 @@ target_include_directories(Observer PRIVATE
 )
 target_link_libraries(Observer PRIVATE
     plugin_base
+    ZLIB::ZLIB  
 )
-
+target_compile_definitions(Observer PRIVATE WIN32)
 target_compile_options(Observer PRIVATE /wd4201 /wd4505)
 target_compile_options(Observer PRIVATE /W4 /WX /Gy)
 target_compile_options(Observer PRIVATE $<$<NOT:$<CONFIG:Debug>>:/GL>)
