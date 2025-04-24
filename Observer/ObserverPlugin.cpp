@@ -98,8 +98,8 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_jumbo_flawless_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_unknown);
     
-    // load agent loop settings
-    // PLUGIN_LOAD_BOOL(agent_loop_enabled); // Removed
+    PLUGIN_LOAD_BOOL(auto_export_on_match_end);
+    PLUGIN_LOAD_BOOL(auto_reset_name_on_match_end);
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
@@ -131,8 +131,8 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_jumbo_flawless_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_unknown);
     
-    // save agent loop settings
-    // PLUGIN_SAVE_BOOL(agent_loop_enabled); // Removed
+    PLUGIN_SAVE_BOOL(auto_export_on_match_end);
+    PLUGIN_SAVE_BOOL(auto_reset_name_on_match_end);
 }
 
 // draws the generic UI settings in the main settings panel
@@ -187,125 +187,209 @@ void ObserverPlugin::Draw(
             ImGui::TextDisabled("NOT OBSERVING");
         }
         
-        // display log stats and export controls
         ImGui::Separator();
-        ImGui::Text("StoC Logs: %zu entries", capture_handler ? capture_handler->GetLogCount() : 0);
 
-        // export folder name input
-        ImGui::InputText("Match Name", export_folder_name, sizeof(export_folder_name));
-        ImGui::SameLine();
-        if (ImGui::Button("Reset##FolderName")) {
-            GenerateDefaultFolderName(); // reset to default time-based name
-        }
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Sets the name for the subfolder within 'captures/' where logs will be saved.\nReset generates a name based on the current time.");
-        }
+        if (ImGui::TreeNodeEx("Export Match", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
 
-        if (ImGui::Button("Export Logs")) {
-            if (strlen(export_folder_name) > 0) {
-                // convert char folder name to wchar_t
-                wchar_t wfoldername[sizeof(export_folder_name)]; // use stack buffer of same size
-                size_t converted = 0;
-                errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE);
+            if (ImGui::Button("Export")) {
+                if (strlen(export_folder_name) > 0) {
+                    // convert char folder name to wchar_t
+                    wchar_t wfoldername[sizeof(export_folder_name)]; // use stack buffer of same size
+                    size_t converted = 0;
+                    errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE);
 
-                if (err == 0) {
-                    ExportLogsToFolder(wfoldername);
+                    if (err == 0) {
+                        ExportLogsToFolder(wfoldername);
+                    } else {
+                         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for export.");
+                    }
                 } else {
-                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for export.");
+                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Please enter a Match Name for export.");
                 }
-            } else {
-                 GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Please enter a Match Name for export.");
             }
-        }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Exports all captured StoC events and Agent Loop snapshots for the current match to the specified 'captures/<Match Name>/' folder.");
+            }
+            
+            // export folder name input 
+            ImGui::InputText("Match Name", export_folder_name, sizeof(export_folder_name));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Sets the name for the subfolder within 'captures/' where logs will be saved.");
+            }
 
-        ImGui::SameLine();
+            ImGui::SameLine();
+            // generate default folder name button
+            if (ImGui::Button("Generate##FolderName")) { 
+                GenerateDefaultFolderName(); // reset to default time-based name
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Generates a default Match Name based on the current date and time.");
+            }
 
-        if (ImGui::Button("Clear Logs")) {
-            ClearLogs();
-            GenerateDefaultFolderName(); // also reset folder name suggestion when clearing logs
-        }
+            // add Checkboxes for auto actions 
+            ImGui::Checkbox("Auto Export on Match End", &auto_export_on_match_end);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("If checked, automatically exports logs when observer mode ends.");
+            }
+            ImGui::Checkbox("Auto Reset Match Name on Match End", &auto_reset_name_on_match_end);
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("If checked, automatically generates a new default match name when observer mode ends.");
+            }
 
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Export: Save logs to captures/<Match Name>/\nClear: Remove all current log entries and reset Match Name.");
+            ImGui::Unindent();
+            ImGui::TreePop(); 
         }
 
         ImGui::Separator();
 
-        ImGui::Checkbox("Enable StoC Logging", &stoc_status);
+        if (ImGui::TreeNodeEx("Capture Status", ImGuiTreeNodeFlags_DefaultOpen)) 
+        {
+            ImGui::Indent();
+
+            // StoC Events Capture Status
+            bool stoc_capturing = match_handler && match_handler->IsObserving();
+            ImGui::Text("StoC Events Capture:"); ImGui::SameLine();
+            if (stoc_capturing) {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Active");
+            } else {
+                ImGui::TextDisabled("Inactive");
+            }
+             if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Indicates if StoC events are being captured internally.\n(Triggered by entering observer mode)");
+            }
+
+            // agents states capture status
+            bool loop_running = loop_handler && loop_handler->IsRunning();
+            ImGui::Text("Agents States Capture:"); ImGui::SameLine(); // Renamed label
+            if (loop_running) {
+                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Running");
+            } else {
+                ImGui::TextDisabled("Stopped");
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Indicates if the Agents Loop thread is currently capturing agents states snapshots.\n(Triggered by entering observer mode)");
+            }
+
+            ImGui::Unindent();
+            ImGui::TreePop(); 
+        }
+        
+        ImGui::Separator();
+
+        ImGui::Checkbox("Enable StoC logging chat", &stoc_status); 
         ImGui::SameLine(); 
         ImGui::TextDisabled("(?)");
         if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Master toggle for in-game display of StoC logs.\nAll events are still recorded internally and exported regardless of this setting.");
+            ImGui::SetTooltip("Master toggle for displaying StoC log messages in the game chat.\nAll events are still recorded internally for export regardless of this setting.");
         }
         
         if (stoc_status)
         {
-            ImGui::Separator();
-            if (ImGui::CollapsingHeader("StoC Options"))
-            {
-                ImGui::Indent();
+            ImGui::Indent();
 
-                auto AddLogCheckbox = [](const char* label, bool* v, const char* tooltip_text) {
-                    ImGui::Checkbox(label, v);
-                    ImGui::SameLine();
-                    ImGui::TextDisabled("(?)");
-                    if (ImGui::IsItemHovered()) {
-                        ImGui::SetTooltip(tooltip_text);
-                    }
-                };
-
-                if (ImGui::TreeNode("Skill Events")) {
-                    AddLogCheckbox("Activations##Skill", &log_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
-                    AddLogCheckbox("Finishes##Skill", &log_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillFinished\nMarker: [SKL]\nFile: skill_events.txt");
-                    AddLogCheckbox("Stops##Skill", &log_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillStopped\nMarker: [SKL]\nFile: skill_events.txt");
-                    AddLogCheckbox("Instant Activations##Skill", &log_instant_skills, "Chat Log Toggle\nHandler: ObserverStoC::handleInstantSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
-                    ImGui::TreePop();
+            auto AddLogCheckbox = [](const char* label, bool* v, const char* tooltip_text) {
+                ImGui::Checkbox(label, v);
+                ImGui::SameLine();
+                ImGui::TextDisabled("(?)");
+                if (ImGui::IsItemHovered()) {
+                    ImGui::SetTooltip(tooltip_text);
                 }
+            };
 
-                if (ImGui::TreeNode("Attack Skill Events")) {
-                     AddLogCheckbox("Activations##AttackSkill", &log_attack_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillActivated\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                     AddLogCheckbox("Finishes##AttackSkill", &log_attack_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillFinished\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                     AddLogCheckbox("Stops##AttackSkill", &log_attack_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillStopped\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::TreeNode("Basic Attack Events")) {
-                    AddLogCheckbox("Starts##BasicAttack", &log_basic_attack_starts, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStarted\nMarker: [ATK]\nFile: basic_attack_events.txt");
-                    AddLogCheckbox("Finishes##BasicAttack", &log_basic_attack_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackFinished\nMarker: [ATK]\nFile: basic_attack_events.txt");
-                    AddLogCheckbox("Stops##BasicAttack", &log_basic_attack_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStopped\nMarker: [ATK]\nFile: basic_attack_events.txt");
-                   ImGui::TreePop();
-                }
-                
-                if (ImGui::TreeNode("Combat Events")) {
-                    AddLogCheckbox("Damage", &log_damage, "Chat Log Toggle\nHandler: ObserverStoC::handleDamage\nMarker: [CMB]\nFile: combat_events.txt");
-                    AddLogCheckbox("Interrupts", &log_interrupts, "Chat Log Toggle\nHandler: ObserverStoC::handleInterrupted\nMarker: [CMB]\nFile: combat_events.txt");
-                    AddLogCheckbox("Knockdowns", &log_knockdowns, "Chat Log Toggle\nHandler: ObserverStoC::handleKnockdown\nMarker: [CMB]\nFile: combat_events.txt");
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::TreeNode("Agent Events")) {
-                    AddLogCheckbox("Movement", &log_movement, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentMovement\nMarker: [AGT]\nFile: agent_events.txt");
-                    ImGui::TreePop();
-                }
-
-                if (ImGui::TreeNode("Jumbo Messages")) {
-                    AddLogCheckbox("Base Under Attack##Jumbo", &log_jumbo_base_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 0\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Guild Lord Under Attack##Jumbo", &log_jumbo_guild_lord_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 1\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Captured Shrine##Jumbo", &log_jumbo_captured_shrine, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 3\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Captured Tower##Jumbo", &log_jumbo_captured_tower, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 5\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Party Defeated##Jumbo", &log_jumbo_party_defeated, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 6\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Morale Boost##Jumbo", &log_jumbo_morale_boost, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 9\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Victory##Jumbo", &log_jumbo_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 16\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Flawless Victory##Jumbo", &log_jumbo_flawless_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 17\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    AddLogCheckbox("Unknown Types##Jumbo", &log_jumbo_unknown, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nUnknown Types\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                    ImGui::TreePop();
-                }
-
-                ImGui::Unindent();
+            if (ImGui::TreeNode("Skill Events")) {
+                AddLogCheckbox("Activations##Skill", &log_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
+                AddLogCheckbox("Finishes##Skill", &log_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillFinished\nMarker: [SKL]\nFile: skill_events.txt");
+                AddLogCheckbox("Stops##Skill", &log_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillStopped\nMarker: [SKL]\nFile: skill_events.txt");
+                AddLogCheckbox("Instant Activations##Skill", &log_instant_skills, "Chat Log Toggle\nHandler: ObserverStoC::handleInstantSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
+                ImGui::TreePop();
             }
+
+            if (ImGui::TreeNode("Attack Skill Events")) {
+                 AddLogCheckbox("Activations##AttackSkill", &log_attack_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillActivated\nMarker: [ASK]\nFile: attack_skill_events.txt");
+                 AddLogCheckbox("Finishes##AttackSkill", &log_attack_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillFinished\nMarker: [ASK]\nFile: attack_skill_events.txt");
+                 AddLogCheckbox("Stops##AttackSkill", &log_attack_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillStopped\nMarker: [ASK]\nFile: attack_skill_events.txt");
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Basic Attack Events")) {
+                AddLogCheckbox("Starts##BasicAttack", &log_basic_attack_starts, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStarted\nMarker: [ATK]\nFile: basic_attack_events.txt");
+                AddLogCheckbox("Finishes##BasicAttack", &log_basic_attack_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackFinished\nMarker: [ATK]\nFile: basic_attack_events.txt");
+                AddLogCheckbox("Stops##BasicAttack", &log_basic_attack_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStopped\nMarker: [ATK]\nFile: basic_attack_events.txt");
+               ImGui::TreePop();
+            }
+            
+            if (ImGui::TreeNode("Combat Events")) {
+                AddLogCheckbox("Damage", &log_damage, "Chat Log Toggle\nHandler: ObserverStoC::handleDamage\nMarker: [CMB]\nFile: combat_events.txt");
+                AddLogCheckbox("Interrupts", &log_interrupts, "Chat Log Toggle\nHandler: ObserverStoC::handleInterrupted\nMarker: [CMB]\nFile: combat_events.txt");
+                AddLogCheckbox("Knockdowns", &log_knockdowns, "Chat Log Toggle\nHandler: ObserverStoC::handleKnockdown\nMarker: [CMB]\nFile: combat_events.txt");
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Agent Events")) {
+                AddLogCheckbox("Movement", &log_movement, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentMovement\nMarker: [AGT]\nFile: agent_events.txt");
+                ImGui::TreePop();
+            }
+
+            if (ImGui::TreeNode("Jumbo Messages")) {
+                AddLogCheckbox("Base Under Attack##Jumbo", &log_jumbo_base_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 0\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Guild Lord Under Attack##Jumbo", &log_jumbo_guild_lord_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 1\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Captured Shrine##Jumbo", &log_jumbo_captured_shrine, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 3\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Captured Tower##Jumbo", &log_jumbo_captured_tower, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 5\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Party Defeated##Jumbo", &log_jumbo_party_defeated, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 6\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Morale Boost##Jumbo", &log_jumbo_morale_boost, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 9\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Victory##Jumbo", &log_jumbo_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 16\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Flawless Victory##Jumbo", &log_jumbo_flawless_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 17\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                AddLogCheckbox("Unknown Types##Jumbo", &log_jumbo_unknown, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nUnknown Types\nMarker: [JMB]\nFile: jumbo_messages.txt");
+                ImGui::TreePop();
+            }
+
+            ImGui::Unindent();
         }
     }
     ImGui::End();
+}
+
+void ObserverPlugin::HandleMatchEnd() {
+    // function called by ObserverMatch when observer mode ends
+    GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Observer mode ended.");
+
+    // check if auto-export is enabled
+    if (auto_export_on_match_end) {
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export triggered...");
+        if (strlen(export_folder_name) > 0) {
+            // convert char folder name to wchar_t
+            wchar_t wfoldername[sizeof(export_folder_name)]; // use stack buffer of same size
+            size_t converted = 0;
+            errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE); // convert char folder name to wchar_t
+
+            if (err == 0) {
+                if (ExportLogsToFolder(wfoldername)) { // export logs to folder
+                     wchar_t msg[512];
+                     swprintf_s(msg, L"Successfully auto-exported logs to 'captures/%ls'.", wfoldername); 
+                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
+                } else {
+                     wchar_t msg[512];
+                     swprintf_s(msg, L"Auto-export failed. Check previous errors. Folder was 'captures/%ls'.", wfoldername);
+                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
+                }
+            } else {
+                 GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for auto-export.");
+            }
+        } else {
+             GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export skipped: Match Name is empty.");
+        }
+    } else {
+         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export disabled.");
+    }
+
+    // check if auto-reset name is enabled
+    if (auto_reset_name_on_match_end) {
+        GenerateDefaultFolderName(); // generate default folder name
+        wchar_t msg[512];
+        swprintf_s(msg, L"Auto-resetting Match Name to '%hs'.", export_folder_name);
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
+    } else {
+         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
+    }
 }

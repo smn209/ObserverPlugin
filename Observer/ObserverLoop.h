@@ -24,6 +24,9 @@ public:
     bool ExportAgentLogs(const wchar_t* folder_name); // exports accumulated agent logs into separate gzip files per agent
     void ClearAgentLogs(); // clears all accumulated agent logs
 
+    // checks if the background loop is currently running
+    bool IsRunning() const;
+
 private:
     void RunLoop(); // the function executed by the background thread
     void AddAgentLogEntry(uint32_t agent_id, const std::wstring& entry); // thread-safe log addition

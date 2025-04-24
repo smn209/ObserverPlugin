@@ -72,6 +72,9 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
         if (owner_plugin && owner_plugin->loop_handler) {
             owner_plugin->loop_handler->Stop();
         }
+        if (owner_plugin) {
+            owner_plugin->HandleMatchEnd();
+        }
     } else if (is_observing) {
         // still observing (e.g., map change within observer mode)
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Still in Observer Mode instance.");

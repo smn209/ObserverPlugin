@@ -55,6 +55,8 @@ public:
         return stoc_success || agent_success;
     }
 
+    void HandleMatchEnd();
+
     bool stoc_status = false; // master toggle 
     bool log_skill_activations = false;
     bool log_attack_skill_activations = false;
@@ -79,12 +81,15 @@ public:
     bool log_jumbo_morale_boost = true;
     bool log_jumbo_victory = true;
     bool log_jumbo_flawless_victory = true;
-    bool log_jumbo_unknown = true;
+    bool log_jumbo_unknown = false;
+
+    bool auto_export_on_match_end = false;
+    bool auto_reset_name_on_match_end = false;
+
+    char export_folder_name[128]; // buffer for folder name input
 
 private:
     // visibility state is handled by plugin_visible in ToolboxUIPlugin base class
-    // renamed buffer for the log export folder/match name input field
-    char export_folder_name[256];   
 
     // helper to generate default folder name
     void GenerateDefaultFolderName() {
@@ -94,12 +99,10 @@ private:
         if (err == 0) { // check for errors
             std::ostringstream oss;
             oss << "Match_" << std::put_time(&tm, "%Y%m%d_%H%M%S");
-            strncpy_s(export_folder_name, oss.str().c_str(), sizeof(export_folder_name) - 1);
-            export_folder_name[sizeof(export_folder_name) - 1] = '\0'; // ensure null termination
+            strncpy_s(export_folder_name, sizeof(export_folder_name), oss.str().c_str(), _TRUNCATE);
         } else {
             // handle error, e.g., use a default fixed name
-            strncpy_s(export_folder_name, "Match_Default", sizeof(export_folder_name) - 1);
-            export_folder_name[sizeof(export_folder_name) - 1] = '\0';
+            strncpy_s(export_folder_name, sizeof(export_folder_name), "Match_Default", _TRUNCATE);
         }
     }
 };

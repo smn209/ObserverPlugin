@@ -323,3 +323,7 @@ std::wstring ObserverLoop::GetAgentLogLine(GW::Agent* agent) {
     
     return ss.str();
 } 
+
+bool ObserverLoop::IsRunning() const {
+    return run_loop_.load();
+} 
