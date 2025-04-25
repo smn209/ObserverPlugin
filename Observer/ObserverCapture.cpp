@@ -244,3 +244,15 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
          return false;
     }
 } 
+
+size_t ObserverCapture::GetLogCount() const {
+    return match_log_entries.size();
+}
+
+const std::vector<std::wstring>& ObserverCapture::GetLogEntries() const {
+    return match_log_entries;
+}
+
+const std::vector<std::wstring>& ObserverCapture::GetLogs() const {
+    return match_log_entries;
+} 

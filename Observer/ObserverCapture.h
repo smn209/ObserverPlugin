@@ -13,9 +13,9 @@ public:
     void ClearLogs();
     bool ExportLogsToFolder(const wchar_t* folder_name);
 
-    size_t GetLogCount() const { return match_log_entries.size(); }
-    const std::vector<std::wstring>& GetLogEntries() const { return match_log_entries; }
-    const std::vector<std::wstring>& GetLogs() const { return match_log_entries; } 
+    size_t GetLogCount() const;
+    const std::vector<std::wstring>& GetLogEntries() const;
+    const std::vector<std::wstring>& GetLogs() const;
 
 private:
     std::vector<std::wstring> match_log_entries;

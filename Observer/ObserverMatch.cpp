@@ -492,3 +492,33 @@ void ObserverMatch::HandleMatchEnd() {
          GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
     }
 }
+void MatchInfo::Reset() {
+    map_id = 0;
+    end_time_ms = 0;
+    end_time_formatted = L"";
+    winner_party_id = 0;
+    ClearAgentInfoMap(); 
+    ClearGuildInfoMap(); 
+}
+
+void MatchInfo::ClearAgentInfoMap() {
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    agents_info.clear();
+}
+
+void MatchInfo::ClearGuildInfoMap() {
+    std::lock_guard<std::mutex> lock(guilds_info_mutex);
+    guilds_info.clear();
+}
+
+void ObserverMatch::SetOwnerPlugin(ObserverPlugin* plugin) {
+    owner_plugin = plugin;
+}
+
+bool ObserverMatch::IsObserving() const {
+    return is_observing;
+}
+
+MatchInfo& ObserverMatch::GetMatchInfo() {
+    return current_match_info_;
+}

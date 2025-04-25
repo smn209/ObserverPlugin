@@ -64,24 +64,11 @@ struct MatchInfo {
     std::map<uint16_t, GuildInfo> guilds_info;
     mutable std::mutex guilds_info_mutex;
 
-    void Reset() {
-        map_id = 0;
-        end_time_ms = 0;
-        end_time_formatted = L"";
-        winner_party_id = 0;
-        ClearAgentInfoMap(); 
-        ClearGuildInfoMap(); 
-    }
+    void Reset();
 
-    void ClearAgentInfoMap() {
-        std::lock_guard<std::mutex> lock(agents_info_mutex);
-        agents_info.clear();
-    }
+    void ClearAgentInfoMap();
 
-    void ClearGuildInfoMap() {
-        std::lock_guard<std::mutex> lock(guilds_info_mutex);
-        guilds_info.clear();
-    }
+    void ClearGuildInfoMap();
 
     void UpdateAgentInfo(const AgentInfo& info);
     std::map<uint32_t, AgentInfo> GetAgentsInfoCopy() const;
@@ -98,10 +85,10 @@ public:
 
     void RegisterCallbacks();
     void RemoveCallbacks();
-    void SetOwnerPlugin(ObserverPlugin* plugin) { owner_plugin = plugin; }
+    void SetOwnerPlugin(ObserverPlugin* plugin);
 
-    [[nodiscard]] bool IsObserving() const { return is_observing; }
-    [[nodiscard]] MatchInfo& GetMatchInfo() { return current_match_info_; }
+    [[nodiscard]] bool IsObserving() const;
+    [[nodiscard]] MatchInfo& GetMatchInfo();
 
     void SetMatchEndInfo(uint32_t end_time_ms, uint32_t raw_winner_id);
 

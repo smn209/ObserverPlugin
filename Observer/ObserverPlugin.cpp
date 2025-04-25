@@ -181,6 +181,28 @@ void ObserverPlugin::DrawSettings()
     ToolboxUIPlugin::DrawSettings(); // draw base settings (visibility, etc.)
 }
 
+const char* ObserverPlugin::Name() const {
+    return "Observer Plugin";
+}
+
+void ObserverPlugin::AddLogEntry(const wchar_t* entry) {
+    if (capture_handler) capture_handler->AddLogEntry(entry);
+}
+
+void ObserverPlugin::GenerateDefaultFolderName() {
+    auto t = std::time(nullptr);
+    std::tm tm; // use a separate tm struct
+    errno_t err = localtime_s(&tm, &t); // use localtime_s
+    if (err == 0) { // check for errors
+        std::ostringstream oss;
+        oss << "Match_" << std::put_time(&tm, "%Y%m%d_%H%M%S");
+        strncpy_s(export_folder_name, sizeof(export_folder_name), oss.str().c_str(), _TRUNCATE);
+    } else {
+        // handle error, e.g., use a default fixed name
+        strncpy_s(export_folder_name, sizeof(export_folder_name), "Match_Default", _TRUNCATE);
+    }
+}
+
 void ObserverPlugin::Initialize(
     ImGuiContext* ctx, 
     const ImGuiAllocFns allocator_fns, 

@@ -21,7 +21,7 @@ public:
     ObserverPlugin();
     ~ObserverPlugin() override;
 
-    const char* Name() const override { return "Observer Plugin"; }
+    const char* Name() const override;
 
     // plugin lifecycle functions
     void Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll) override;
@@ -40,9 +40,7 @@ public:
     ObserverLoop* loop_handler = nullptr;
 
     // proxy methods for log capture
-    void AddLogEntry(const wchar_t* entry) { 
-        if (capture_handler) capture_handler->AddLogEntry(entry); 
-    }
+    void AddLogEntry(const wchar_t* entry);
     
     bool stoc_status = false; // master toggle 
     bool log_skill_activations = true;
@@ -76,17 +74,5 @@ public:
     char export_folder_name[128]; // buffer for folder name input
 
     // helper to generate default folder name
-    void GenerateDefaultFolderName() {
-        auto t = std::time(nullptr);
-        std::tm tm; // use a separate tm struct
-        errno_t err = localtime_s(&tm, &t); // use localtime_s
-        if (err == 0) { // check for errors
-            std::ostringstream oss;
-            oss << "Match_" << std::put_time(&tm, "%Y%m%d_%H%M%S");
-            strncpy_s(export_folder_name, sizeof(export_folder_name), oss.str().c_str(), _TRUNCATE);
-        } else {
-            // handle error, e.g., use a default fixed name
-            strncpy_s(export_folder_name, sizeof(export_folder_name), "Match_Default", _TRUNCATE);
-        }
-    }
+    void GenerateDefaultFolderName();
 };
