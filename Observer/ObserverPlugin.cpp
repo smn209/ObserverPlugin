@@ -7,7 +7,6 @@
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
-#include <GWCA/Managers/AgentMgr.h>
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
@@ -20,7 +19,48 @@
 #include <fstream>
 #include <ctime>
 #include <cstdio>
-#include <stringapiset.h> // For MultiByteToWideChar
+#include <stringapiset.h>
+#include <string>
+
+#include <windows.h>
+#include <stdio.h>
+#include <vector>      
+#include <algorithm>   
+#include <iomanip> 
+#include <sstream>
+#include <mutex>
+
+#include <GWCA/GameEntities/Guild.h> 
+
+struct AgentInfo;
+struct GuildInfo; 
+class ObserverStoC;
+class ObserverMatch;
+class ObserverCapture;
+
+std::string EscapeWideStringForJSON(const std::wstring& wstr);
+
+std::string EscapeWideStringForJSON(const std::wstring& wstr) {
+    std::stringstream ss;
+    ss << "\""; // start quote
+    for (wchar_t wc : wstr) {
+        if (wc >= 32 && wc <= 126) {
+            char c = static_cast<char>(wc);
+            if (c == '\"') {
+                ss << "\\\""; // escape quote
+            } else if (c == '\\') {
+                ss << "\\\\"; // escape backslash
+            } else {
+                ss << c; // append printable ASCII character
+            }
+        } else {
+            // ignore non-printable ASCII, control characters, and non-ASCII chars
+            continue;
+        }
+    }
+    ss << "\""; // end quote
+    return ss.str();
+}
 
 ObserverPlugin::ObserverPlugin()
 {
@@ -28,7 +68,7 @@ ObserverPlugin::ObserverPlugin()
     match_handler = new ObserverMatch(stoc_handler);
     match_handler->SetOwnerPlugin(this);
     capture_handler = new ObserverCapture();
-    loop_handler = new ObserverLoop(this);
+    loop_handler = new ObserverLoop(this, match_handler);
 
     // generate an initial default folder name based on current time
     GenerateDefaultFolderName();
@@ -200,7 +240,11 @@ void ObserverPlugin::Draw(
                     errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE);
 
                     if (err == 0) {
-                        ExportLogsToFolder(wfoldername);
+                        if (match_handler) {
+                           match_handler->ExportLogsToFolder(wfoldername);
+                        } else {
+                            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error: Match handler not available for export.");
+                        }
                     } else {
                          GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for export.");
                     }
@@ -266,7 +310,7 @@ void ObserverPlugin::Draw(
 
             // agents states capture status
             bool loop_running = loop_handler && loop_handler->IsRunning();
-            ImGui::Text("Agents States Capture:"); ImGui::SameLine(); // Renamed label
+            ImGui::Text("Agents States Capture:"); ImGui::SameLine();
             if (loop_running) {
                 ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Running");
             } else {
@@ -280,6 +324,177 @@ void ObserverPlugin::Draw(
             ImGui::TreePop(); 
         }
         
+        if (ImGui::TreeNodeEx("Live Party Info", ImGuiTreeNodeFlags_DefaultOpen)) 
+        {
+            ImGui::Indent();
+            if (match_handler) {
+                std::lock_guard<std::mutex> lock(match_handler->GetMatchInfo().agents_info_mutex);
+                const auto& agents_info = match_handler->GetMatchInfo().agents_info;
+
+                // create a vector of pointers/references to sort *without* copying AgentInfo
+                std::vector<const AgentInfo*> agent_list;
+                agent_list.reserve(agents_info.size());
+                for(const auto& pair : agents_info) {
+                    agent_list.push_back(&pair.second);
+                }
+                // mutex can be released earlier if sorting is slow, but keeping it for simplicity here.
+                // if performance becomes an issue, copy relevant sort keys + agent_id, sort that, then use agent_id to get info.
+
+                // sort the vector of pointers
+                std::sort(agent_list.begin(), agent_list.end(), [](const AgentInfo* a, const AgentInfo* b) {
+                    if (a->party_id != b->party_id) return a->party_id < b->party_id;
+                    if (a->type != b->type) return static_cast<int>(a->type) < static_cast<int>(b->type);
+                    return a->agent_id < b->agent_id;
+                });
+
+                if (agent_list.empty()) {
+                    ImGui::TextDisabled("No party data captured yet.");
+                } else {
+                    // helper to convert AgentType enum to string
+                    auto AgentTypeToString = [](AgentType type) -> const char* {
+                        switch (type) {
+                            case AgentType::PLAYER: return "Player";
+                            case AgentType::HERO: return "Hero";
+                            case AgentType::HENCHMAN: return "Henchman";
+                            case AgentType::OTHER: return "Other";
+                            default: return "Unknown";
+                        }
+                    };
+
+                    uint32_t current_party_id = (uint32_t)-1; 
+                    AgentType current_type = (AgentType)-1;
+                    bool party_node_open = false;
+
+                    for (const auto* agent_ptr : agent_list) {
+                        const AgentInfo& agent = *agent_ptr; 
+
+                        // start new party node if party ID changes
+                        if (agent.party_id != current_party_id) {
+                            if (party_node_open) {
+                                ImGui::Unindent(); // unindent previous type section
+                                ImGui::TreePop(); // pop previous party node
+                            }
+                            current_party_id = agent.party_id;
+                            party_node_open = ImGui::TreeNode((void*)(intptr_t)current_party_id, "Party %u", current_party_id);
+                            current_type = (AgentType)-1; 
+                        }
+
+                        if (party_node_open) {
+                            // print type header if type changes within the current party
+                            if (agent.type != current_type) {
+                                if (current_type != (AgentType)-1) {
+                                    ImGui::Unindent(); // unindent previous type section
+                                }
+                                current_type = agent.type;
+                                // count agents of this type in this party (can be pre-calculated if needed)
+                                size_t count = 0;
+                                for(const auto* other_agent_ptr : agent_list) {
+                                    if (other_agent_ptr->party_id == current_party_id && other_agent_ptr->type == current_type) {
+                                        count++;
+                                    }
+                                }
+                                ImGui::Text("  %ss (%zu):", AgentTypeToString(current_type), count);
+                                ImGui::Indent();
+                            }
+
+                            // display current agent info using stringstream
+                            std::stringstream ss_display;
+                            ss_display << agent.agent_id
+                                       << " (L" << agent.level
+                                       << " T" << agent.team_id << ")"
+                                       << " (G" << agent.guild_id << ")"
+                                       << " (" << agent.primary_profession
+                                       << "/" << agent.secondary_profession << ")";
+                            if (agent.type == AgentType::PLAYER) {
+                                ss_display << " [Player#: " << agent.player_number << "]";
+                            }
+                            // display agent id if name is empty, otherwise the encoded name
+                            if (!agent.encoded_name.empty()) {
+                                // filter wstring to keep only printable ASCII for display
+                                std::string narrow_name_display;
+                                narrow_name_display.reserve(agent.encoded_name.length()); // pre-allocate roughly
+                                for (wchar_t wc : agent.encoded_name) {
+                                    if (wc >= 32 && wc <= 126) {
+                                        narrow_name_display += static_cast<char>(wc);
+                                    }
+                                }
+                                ss_display << " Name: " << narrow_name_display;
+                            }
+
+                            // add used skills if any
+                            if (!agent.used_skill_ids.empty()) {
+                                ss_display << " Skills: [";
+                                bool first_skill = true;
+                                for (uint32_t skill_id : agent.used_skill_ids) {
+                                    if (!first_skill) {
+                                        ss_display << ", ";
+                                    }
+                                    ss_display << skill_id;
+                                    first_skill = false;
+                                }
+                                ss_display << "]";
+                            }
+
+                            ImGui::TextUnformatted(ss_display.str().c_str());
+                        }
+                    }
+
+                    // clean up the last opened node/indent if any agents were processed
+                    if (party_node_open) {
+                        ImGui::Unindent(); // unindent last type section
+                        ImGui::TreePop(); // pop last party node
+                    }
+                }
+            } else {
+                ImGui::TextDisabled("Match handler not available.");
+            }
+            ImGui::Unindent();
+            ImGui::TreePop(); 
+        }
+
+        if (ImGui::TreeNodeEx("Live Guild Info", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
+            if (match_handler) {
+                std::map<uint16_t, GuildInfo> guilds_info = match_handler->GetMatchInfo().GetGuildsInfoCopy();
+                if (guilds_info.empty()) {
+                    ImGui::TextDisabled("No guild data captured yet.");
+                } else {
+                    for (const auto& [guild_id, guild_info] : guilds_info) {
+                        std::string narrow_name_display;
+                        narrow_name_display.reserve(guild_info.name.length());
+                        for (wchar_t wc : guild_info.name) {
+                            if (wc >= 32 && wc <= 126) narrow_name_display += static_cast<char>(wc);
+                        }
+
+                        std::string narrow_tag_display;
+                        narrow_tag_display.reserve(guild_info.tag.length());
+                        for (wchar_t wc : guild_info.tag) {
+                            if (wc >= 32 && wc <= 126) narrow_tag_display += static_cast<char>(wc);
+                        }
+
+                        ImGui::Text("ID: %u, Name: %s, Tag: [%s]", 
+                                    guild_info.guild_id, 
+                                    narrow_name_display.c_str(), 
+                                    narrow_tag_display.c_str());
+
+                        ImGui::Text("  Rank: %u, Rating: %u, Features: %u", 
+                                    guild_info.rank, guild_info.rating, guild_info.features);
+                        ImGui::Text("  Faction: %s (%u pts), Qualifier Pts: %u",
+                                    (guild_info.faction == 0 ? "Kurzick" : (guild_info.faction == 1 ? "Luxon" : "Unknown")), 
+                                    guild_info.faction_points, guild_info.qualifier_points);
+                        ImGui::Text("  Cape: BG(0x%X), Detail(0x%X), Emblem(0x%X)", 
+                                    guild_info.cape.cape_bg_color, guild_info.cape.cape_detail_color, guild_info.cape.cape_emblem_color);
+                        ImGui::Text("        Shape(%u), Detail(%u), Emblem(%u), Trim(%u)",
+                                    guild_info.cape.cape_shape, guild_info.cape.cape_detail, guild_info.cape.cape_emblem, guild_info.cape.cape_trim);
+                    }
+                }
+            } else {
+                 ImGui::TextDisabled("Match handler not available.");
+            }
+             ImGui::Unindent();
+            ImGui::TreePop();
+        }
+
         ImGui::Separator();
 
         ImGui::Checkbox("Enable StoC logging chat", &stoc_status); 
@@ -353,48 +568,4 @@ void ObserverPlugin::Draw(
         }
     }
     ImGui::End();
-}
-
-void ObserverPlugin::HandleMatchEnd() {
-    // function called by ObserverMatch when observer mode ends
-    GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Observer mode ended.");
-
-    // check if auto-export is enabled
-    if (auto_export_on_match_end) {
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export triggered...");
-        if (strlen(export_folder_name) > 0) {
-            // convert char folder name to wchar_t
-            wchar_t wfoldername[sizeof(export_folder_name)]; // use stack buffer of same size
-            size_t converted = 0;
-            errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE); // convert char folder name to wchar_t
-
-            if (err == 0) {
-                if (ExportLogsToFolder(wfoldername)) { // export logs to folder
-                     wchar_t msg[512];
-                     swprintf_s(msg, L"Successfully auto-exported logs to 'captures/%ls'.", wfoldername); 
-                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
-                } else {
-                     wchar_t msg[512];
-                     swprintf_s(msg, L"Auto-export failed. Check previous errors. Folder was 'captures/%ls'.", wfoldername);
-                     GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
-                }
-            } else {
-                 GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for auto-export.");
-            }
-        } else {
-             GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export skipped: Match Name is empty.");
-        }
-    } else {
-         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export disabled.");
-    }
-
-    // check if auto-reset name is enabled
-    if (auto_reset_name_on_match_end) {
-        GenerateDefaultFolderName(); // generate default folder name
-        wchar_t msg[512];
-        swprintf_s(msg, L"Auto-resetting Match Name to '%hs'.", export_folder_name);
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
-    } else {
-         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
-    }
 }

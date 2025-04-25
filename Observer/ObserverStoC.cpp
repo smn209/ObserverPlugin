@@ -1,11 +1,13 @@
 #include "ObserverStoC.h"
 #include "ObserverPlugin.h"
+#include "ObserverMatch.h" 
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
-#include <cstdio> // for swprintf
-#include <string> // Needed for std::wstring manipulation
+#include <GWCA/Managers/MapMgr.h> 
+#include <cstdio> 
+#include <string> 
 
 // define markers for categorization (declarations are in ObserverStoC.h)
 const wchar_t* MARKER_SKILL_EVENT = L"[SKL] ";
@@ -44,7 +46,7 @@ void ObserverStoC::RegisterCallbacks() {
     GW::StoC::RegisterPacketCallback<GW::Packet::StoC::GenericModifier>(
         &GenericModifier_Entry,
         [this](const GW::HookStatus*, const GW::Packet::StoC::GenericModifier* packet) -> void {
-            if (!owner) return; // Only check if owner exists
+            if (!owner) return; 
 
             const uint32_t value_id = packet->type;
             const uint32_t caster_id = packet->cause_id;
@@ -163,7 +165,7 @@ void ObserverStoC::logActionActivation(uint32_t caster_id, uint32_t target_id, u
                                         bool no_target, const wchar_t* action_identifier,
                                         const wchar_t* category_marker)
 {
-    if (!owner) return; // ensure owner exists before proceeding
+    if (!owner || !owner->match_handler) return; // ensure owner and match_handler exist
 
     // logs the start of an action (skill activation or basic attack start)
     // handles the potential swap of caster/target ids depending on packet type
@@ -192,6 +194,11 @@ void ObserverStoC::logActionActivation(uint32_t caster_id, uint32_t target_id, u
     uint32_t stored_skill_id = (skill_id == static_cast<uint32_t>(GW::Packet::StoC::GenericValueID::attack_started)) ? 0 : skill_id;
     ActiveActionInfo* new_action = new ActiveActionInfo{stored_skill_id, actual_target_id};
     agent_active_action[actual_caster_id] = new_action;
+
+    // add skills used to match info
+    if (stored_skill_id != 0) { 
+        owner->match_handler->GetMatchInfo().AddSkillUsed(actual_caster_id, stored_skill_id);
+    }
 
     // format log message using the new semicolon format
     wchar_t message_buffer[128];
@@ -387,12 +394,17 @@ void ObserverStoC::handleAttackSkillStopped(uint32_t caster_id) {
 
 // ---- Instant Skill Handler ----
 void ObserverStoC::handleInstantSkillActivated(uint32_t caster_id, uint32_t skill_id) {
-    if (!owner) return;
+    if (!owner || !owner->match_handler) return;
 
     // instant skills don't store state in agent_active_action. target is usually the caster.
     wchar_t message_buffer[128];
     // format: instant_skill_used;skill_id;caster_id;target_id (target=caster)
     swprintf(message_buffer, sizeof(message_buffer)/sizeof(wchar_t), L"INSTANT_SKILL_USED;%u;%u;%u", skill_id, caster_id, caster_id);
+
+    // add skills used to match info
+    if (skill_id != 0) { // check skill_id validity
+        owner->match_handler->GetMatchInfo().AddSkillUsed(caster_id, skill_id);
+    }
 
     std::wstring log_entry = MARKER_SKILL_EVENT;
     log_entry += message_buffer;
@@ -490,7 +502,7 @@ void ObserverStoC::handleAgentMovement(uint32_t agent_id, float x, float y, uint
 
 // ---- Jumbo Message Handler ----
 void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet) {
-    if (!owner) return;
+    if (!owner || !owner->match_handler) return; 
 
     wchar_t message_buffer[128]; // for the visible message part
     wchar_t log_buffer[192]; // larger buffer for marker + message
@@ -498,6 +510,8 @@ void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* pack
 
     // format: game_smsg_jumbo_message;type;value
     swprintf(message_buffer, sizeof(message_buffer)/sizeof(wchar_t), L"GAME_SMSG_JUMBO_MESSAGE;%u;%u", packet->type, packet->value);
+
+    bool is_victory_message = false;
 
     // check corresponding log flag for chat output
     switch (packet->type) {
@@ -507,9 +521,24 @@ void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* pack
         case GW::Packet::StoC::JumboMessageType::CAPTURED_TOWER:              should_log_to_chat = owner->log_jumbo_captured_tower; break;
         case GW::Packet::StoC::JumboMessageType::PARTY_DEFEATED:              should_log_to_chat = owner->log_jumbo_party_defeated; break;
         case GW::Packet::StoC::JumboMessageType::MORALE_BOOST:                should_log_to_chat = owner->log_jumbo_morale_boost; break;
-        case GW::Packet::StoC::JumboMessageType::VICTORY:                     should_log_to_chat = owner->log_jumbo_victory; break;
-        case GW::Packet::StoC::JumboMessageType::FLAWLESS_VICTORY:            should_log_to_chat = owner->log_jumbo_flawless_victory; break;
+        case GW::Packet::StoC::JumboMessageType::VICTORY:
+            should_log_to_chat = owner->log_jumbo_victory;
+            is_victory_message = true;
+            break;
+        case GW::Packet::StoC::JumboMessageType::FLAWLESS_VICTORY:
+            should_log_to_chat = owner->log_jumbo_flawless_victory;
+            is_victory_message = true;
+            break;
         default:                                                            should_log_to_chat = owner->log_jumbo_unknown; break;
+    }
+
+    // capture match end info if it's a victory message
+    if (is_victory_message) {
+        uint32_t instance_time_ms = GW::Map::GetInstanceTime();
+        uint32_t winner_id = packet->value; // value indicates the winning party (raw ID)
+
+        // call ObserverMatch to handle setting the info (including translation)
+        owner->match_handler->SetMatchEndInfo(instance_time_ms, winner_id);
     }
 
     // prepend marker and add to internal log

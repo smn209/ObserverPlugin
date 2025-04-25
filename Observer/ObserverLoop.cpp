@@ -1,5 +1,6 @@
 #include "ObserverLoop.h"
 #include "ObserverPlugin.h"
+#include "ObserverMatch.h"
 
 #include <GWCA/GWCA.h>
 #include <GWCA/Managers/AgentMgr.h>
@@ -7,9 +8,11 @@
 #include <GWCA/Managers/EffectMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/ItemMgr.h>
+#include <GWCA/Managers/GuildMgr.h>
 #include <GWCA/GameEntities/Agent.h>
 #include <GWCA/GameEntities/Skill.h>
 #include <GWCA/GameEntities/Item.h>
+#include <GWCA/GameEntities/Guild.h>
 #include <GWCA/Constants/Skills.h>
 #include <GWCA/Constants/Constants.h>
 
@@ -19,6 +22,11 @@
 #include <iomanip>
 #include <cmath> 
 #include <limits> 
+
+#include <GWCA/Context/GameContext.h>
+#include <GWCA/Context/PartyContext.h>
+#include <GWCA/GameEntities/Party.h>
+#include <GWCA/GameEntities/Player.h>
 
 // shared export helpers from ObserverCapture.cpp
 extern std::vector<unsigned char> compress_gzip(const std::string& data); // compress_gzip
@@ -58,8 +66,8 @@ float ManhattanDistance(float x1, float y1, float z1, float x2, float y2, float 
     return std::abs(x1 - x2) + std::abs(y1 - y2) + std::abs(z1 - z2); // calculate the Manhattan distance between two points
 }
 
-ObserverLoop::ObserverLoop(ObserverPlugin* owner_plugin) 
-    : owner(owner_plugin), run_loop_(false) {
+ObserverLoop::ObserverLoop(ObserverPlugin* owner_plugin, ObserverMatch* match_handler) 
+    : owner_(owner_plugin), match_handler_(match_handler), run_loop_(false) {
 }
 
 ObserverLoop::~ObserverLoop() {
@@ -86,22 +94,28 @@ void ObserverLoop::Stop() {
     if (loop_thread_.joinable()) {
         loop_thread_.join();
     }
-    // Clear last entries map when stopping to ensure fresh data on next start
+    // clear last entries map when stopping to ensure fresh data on next start
     std::lock_guard<std::mutex> lock(log_mutex_);
-    last_log_entry_.clear();
+    last_agent_state_.clear();
 }
 
 void ObserverLoop::ClearAgentLogs() {
-    std::lock_guard<std::mutex> lock(log_mutex_);
-    agent_logs_.clear();
-    last_log_entry_.clear(); // also clear the last entry map
+    {
+        std::lock_guard<std::mutex> lock(log_mutex_);
+        agent_logs_.clear();
+        last_agent_state_.clear();
+    }
+    // clear party logs via match_handler_
+    if (match_handler_) {
+        match_handler_->GetMatchInfo().ClearAgentInfoMap();
+    }
 }
 
 bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
-    if (!owner) return false;
+    if (!owner_) return false;
     
     // create a local copy of the logs to avoid locking during entire export
-    std::map<uint32_t, std::vector<std::wstring>> logs_copy;
+    std::map<uint32_t, std::vector<std::pair<uint32_t, AgentState>>> logs_copy;
     {
         std::lock_guard<std::mutex> lock(log_mutex_);
         // only copy if there are logs to prevent unnecessary work
@@ -109,7 +123,7 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
             logs_copy = agent_logs_;
         } else {
              // if no logs, report and exit early
-             if (owner) {
+             if (owner_) {
                 GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"No agent logs to export.");
              }
              return false; 
@@ -131,10 +145,44 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
         
         // export each agent's logs to its own file
         for (const auto& [agent_id, log_entries] : logs_copy) {
-            // join log entries with newlines
+            // format log entries from AgentState structs
             std::wstringstream buffer;
-            for (const auto& entry : log_entries) {
-                buffer << entry << L"\n";
+            buffer << std::fixed << std::setprecision(3); 
+            for (const auto& entry_pair : log_entries) {
+                const uint32_t timestamp_ms = entry_pair.first;
+                const AgentState& state = entry_pair.second;
+
+                // format timestamp
+                wchar_t timestamp[32];
+                swprintf(timestamp, 32, L"[%02u:%02u.%03u] ", 
+                         (timestamp_ms / 1000) / 60, 
+                         (timestamp_ms / 1000) % 60, 
+                         timestamp_ms % 1000);
+                buffer << timestamp;
+
+                // format AgentState back into the semicolon-delimited string
+                buffer << state.x << L";" << state.y << L";" << state.z << L";"
+                       << state.rotation_angle << L";" << state.weapon_id << L";"
+                       << (state.is_alive ? L"1" : L"0") << L";"
+                       << (state.is_dead ? L"1" : L"0") << L";"
+                       << state.health_pct << L";"
+                       << (state.is_knocked ? L"1" : L"0") << L";"
+                       << state.max_hp << L";"
+                       << (state.has_condition ? L"1" : L"0") << L";"
+                       << (state.has_deep_wound ? L"1" : L"0") << L";"
+                       << (state.has_bleeding ? L"1" : L"0") << L";"
+                       << (state.has_crippled ? L"1" : L"0") << L";"
+                       << (state.has_blind ? L"1" : L"0") << L";"
+                       << (state.has_poison ? L"1" : L"0") << L";"
+                       << (state.has_hex ? L"1" : L"0") << L";"
+                       << (state.has_degen_hex ? L"1" : L"0") << L";"
+                       << (state.has_enchantment ? L"1" : L"0") << L";"
+                       << (state.has_weapon_spell ? L"1" : L"0") << L";"
+                       << (state.is_holding ? L"1" : L"0") << L";"
+                       << (state.is_casting ? L"1" : L"0") << L";"
+                       << state.skill_id;
+
+                buffer << L"\n";
             }
             
             // create file name using agent ID
@@ -147,7 +195,7 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
         
         return true;
     } catch (const std::exception& e) {
-        if (owner) {
+        if (owner_) {
             wchar_t werror_msg[512] = {0}; // initialize buffer
             std::string error_msg = "Error exporting agent logs: "; // error message
             error_msg += e.what(); // add the error message
@@ -158,171 +206,295 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
     }
 }
 
-// Note: AddAgentLogEntry is now internal helper, not meant to be called directly
-// void ObserverLoop::AddAgentLogEntry(uint32_t agent_id, const std::wstring& entry) {
-//     std::lock_guard<std::mutex> lock(log_mutex_);
-//     agent_logs_[agent_id].push_back(entry);
-// }
-
 void ObserverLoop::RunLoop() {
     const uint32_t kLoopInterval = 200; // milliseconds between updates
     const float kPositionThreshold = 30.0f;
+    const float kDistanceThresholdSq = kPositionThreshold * kPositionThreshold; 
     
     while (run_loop_.load()) {
-        // skip if GWCA is not available or not initialized
-        
-        // get current instance time for timestamp
-        uint32_t instance_time_ms = GW::Map::GetInstanceTime();
-
-        if (instance_time_ms == 0 && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) { // check if still loading
-            std::this_thread::sleep_for(std::chrono::milliseconds(kLoopInterval)); // sleep for the loop interval
-            continue; // skip to the next iteration of the loop
-        }
-        
-        // format timestamp
-        wchar_t timestamp[32];
-        swprintf(timestamp, 32, L"[%02u:%02u.%03u] ", 
-                 (instance_time_ms / 1000) / 60, 
-                 (instance_time_ms / 1000) % 60, 
-                 instance_time_ms % 1000);
-        std::wstring timestamp_str = timestamp; // convert the timestamp to a wide string
-
-        // get all agents
-        GW::AgentArray* agents = GW::Agents::GetAgentArray();
-        if (!agents || !agents->valid()) {
+        uint32_t instance_time_ms = GW::Map::GetInstanceTime(); // get the instance time
+        if (instance_time_ms == 0 && GW::Map::GetInstanceType() == GW::Constants::InstanceType::Loading) {
             std::this_thread::sleep_for(std::chrono::milliseconds(kLoopInterval));
-            continue; // skip to the next iteration of the loop
-        } 
+            continue;
+        } // if the instance time is 0 and the instance type is loading, sleep for the loop interval
         
-        std::lock_guard<std::mutex> lock(log_mutex_); // lock for accessing agent_logs_ and last_log_entry_
-        
-        // log data for each agent
-        for (size_t i = 0; i < agents->size(); i++) {
-            GW::Agent* agent = (*agents)[i];
-            if (!agent) continue; // skip if the agent is invalid
-            
-            uint32_t current_agent_id = agent->agent_id;
-            std::wstring agent_data_str = GetAgentLogLine(agent); // get the data part without timestamp
-            std::wstring current_log_line = timestamp_str + agent_data_str; // combine the timestamp and data
+        GW::AgentArray* agents = GW::Agents::GetAgentArray(); // get the agent array
+        if (agents && agents->valid()) { // check if the agent array is valid
+            std::lock_guard<std::mutex> lock(log_mutex_); // lock the log mutex
+            for (size_t i = 0; i < agents->size(); i++) { // iterate through the agents
+                GW::Agent* agent = (*agents)[i]; // get the agent
+                if (!agent) continue; // if the agent is invalid, continue
+                
+                uint32_t current_agent_id = agent->agent_id; // get the agent id
+                AgentState current_state = GetAgentState(agent); // get the agent state
 
-            // optimization check
-            auto it = last_log_entry_.find(current_agent_id);
-            if (it != last_log_entry_.end()) {
-                // previous entry exists
-                const std::wstring& last_line = it->second; // get the last line
-                float last_x, last_y, last_z; // last position
-                std::wstring last_rest_data; // last rest of the data
-                float current_x, current_y, current_z; // current position
-                std::wstring current_rest_data; // current rest of the data
-
-                // check if parsing succeeds for both lines
-                if (ParseLogLine(last_line, last_x, last_y, last_z, last_rest_data) &&
-                    ParseLogLine(current_log_line, current_x, current_y, current_z, current_rest_data)) 
-                {
-                    float distance = ManhattanDistance(current_x, current_y, current_z, last_x, last_y, last_z);
+                auto it = last_agent_state_.find(current_agent_id); // find the agent in the last agent state
+                bool should_log = true; // should log is true
+                if (it != last_agent_state_.end()) { // if the agent is in the last agent state
+                    const AgentState& last_state = it->second; // get the last state
                     
-                        // if position difference is small AND the rest of the data is the same, skip logging
-                    if (distance < kPositionThreshold && current_rest_data == last_rest_data) {
-                        continue; // skip adding this log entry
+                    float dx = current_state.x - last_state.x; // calculate the distance between the current and last state
+                    float dy = current_state.y - last_state.y;
+                    float dz = current_state.z - last_state.z;
+                    float distSq = dx*dx + dy*dy + dz*dz;
+
+                    // create temporary copies excluding position for full state comparison
+                    AgentState current_state_no_pos = current_state;
+                    current_state_no_pos.x = current_state_no_pos.y = current_state_no_pos.z = 0.0f;
+                    AgentState last_state_no_pos = last_state;
+                    last_state_no_pos.x = last_state_no_pos.y = last_state_no_pos.z = 0.0f;
+
+                    if (distSq < kDistanceThresholdSq && current_state_no_pos == last_state_no_pos) {
+                        // only position changed slightly, and rest of state is identical
+                        should_log = false; // don't log this minor movement
                     }
                 }
-                // if parsing failed or data is different enough, proceed to log and update
+
+                if (should_log) {
+                    agent_logs_[current_agent_id].push_back({instance_time_ms, current_state}); // add the current state to the agent logs
+                    last_agent_state_[current_agent_id] = current_state; // update the last agent state
+                }
             }
-            
-            // add to agent's log and update the last entry map
-            agent_logs_[current_agent_id].push_back(current_log_line);
-            last_log_entry_[current_agent_id] = current_log_line;
         }
-        
-        // mutex is released when lock_guard goes out of scope
-        
-        // sleep before next update
+
+        UpdatePartiesInformations(); 
+
         std::this_thread::sleep_for(std::chrono::milliseconds(kLoopInterval));
     }
 }
 
-std::wstring ObserverLoop::GetAgentLogLine(GW::Agent* agent) {
-    if (!agent) return L"INVALID_AGENT";
-    
-    std::wstringstream ss;
-    
-    // format: x;y;z;angle;weapon_id;is_alive;is_dead;health_pct;is_knocked;life_hp;
-    // has_condition;has_deep_wound;has_bleeding;has_crippled;has_blind;has_poison;has_hex;has_degen_hex;
-    // has_enchantment;has_weapon_spell;is_holding;is_casting;skill_id
-    // Note: Timestamp is prepended later in RunLoop
+void ObserverLoop::UpdatePartiesInformations() {
+    if (!match_handler_) return;
+
+    GW::PartyContext* party_ctx = GW::GetGameContext() ? GW::GetGameContext()->party : nullptr;
+    if (!party_ctx || !party_ctx->parties.valid()) {
+        return; // cannot get party context
+    }
+
+    GW::PlayerArray* players = GW::Agents::GetPlayerArray(); 
+    if (!players || !players->valid()) {
+        return; // cannot get player array
+    }
+
+    MatchInfo& match_info = match_handler_->GetMatchInfo(); // get reference to match info
+
+    for (const GW::PartyInfo* party_info : party_ctx->parties) {
+        if (!party_info) continue;
+
+        uint32_t current_party_id = party_info->party_id;
+
+        // get current players agent ids and informations
+        if (party_info->players.valid()) { // check if the players array is valid
+            for (const GW::PlayerPartyMember& p : party_info->players) { // iterate through the players
+                const GW::Player& player = players->at(p.login_number); // get the player from the players array
+                if (player.agent_id != 0) { // check if the player has an agent id
+                    AgentInfo info;
+                    GW::Agent* agent = GW::Agents::GetAgentByID(player.agent_id);
+
+                    info.agent_id = player.agent_id;
+                    info.party_id = current_party_id;
+                    info.type = AgentType::PLAYER;
+                    info.primary_profession = player.primary;
+                    info.secondary_profession = player.secondary;
+                    info.player_number = p.login_number;
+
+                    if (agent && agent->GetIsLivingType()) {
+                        PopulateLivingAgentDetails(static_cast<GW::AgentLiving*>(agent), info);
+                    } else {
+                        info.level = 0; 
+                        info.team_id = 0;
+                        info.guild_id = 0; 
+                        info.encoded_name = L""; 
+                    }
+
+                    match_info.UpdateAgentInfo(info);
+                    MaybeUpdateGuildInfo(info.guild_id, match_info);
+                }
+            }
+        }
+
+        // get heroes
+        if (party_info->heroes.valid()) { // check if the hero array is valid
+            for (const GW::HeroPartyMember& h : party_info->heroes) { // iterate through the heroes
+                if (h.agent_id == 0) continue;
+                AgentInfo info;
+                GW::Agent* agent = GW::Agents::GetAgentByID(h.agent_id);
+
+                info.agent_id = h.agent_id;
+                info.party_id = current_party_id;
+                info.type = AgentType::HERO;
+                info.player_number = 0;
+
+                if (agent && agent->GetIsLivingType()) {
+                    PopulateLivingAgentDetails(static_cast<GW::AgentLiving*>(agent), info);
+                } else {
+                    info.primary_profession = 0;
+                    info.secondary_profession = 0;
+                    info.level = 0;
+                    info.team_id = 0;
+                    info.guild_id = 0;
+                    info.encoded_name = L""; 
+                }
+                
+                match_info.UpdateAgentInfo(info);
+                MaybeUpdateGuildInfo(info.guild_id, match_info);
+            }
+        }
+
+        // get henchmens
+        if (party_info->henchmen.valid()) { // check if the henchman array is valid
+            for (const GW::HenchmanPartyMember& h : party_info->henchmen) { // iterate through the henchmens
+                if (h.agent_id == 0) continue;
+                AgentInfo info;
+                GW::Agent* agent = GW::Agents::GetAgentByID(h.agent_id);
+
+                info.agent_id = h.agent_id;
+                info.party_id = current_party_id;
+                info.type = AgentType::HENCHMAN;
+                info.player_number = 0; 
+
+                if (agent && agent->GetIsLivingType()) {
+                    PopulateLivingAgentDetails(static_cast<GW::AgentLiving*>(agent), info);
+                } else {
+                    info.primary_profession = 0;
+                    info.secondary_profession = 0;
+                    info.level = 0;
+                    info.team_id = 0;
+                    info.guild_id = 0;
+                    info.encoded_name = L""; 
+                }
+
+                match_info.UpdateAgentInfo(info);
+                MaybeUpdateGuildInfo(info.guild_id, match_info);
+            }
+        }
+
+        // get others
+        if (party_info->others.valid()) {
+            for (GW::AgentID agent_id : party_info->others) {
+                if (agent_id != 0) {
+                    AgentInfo info;
+                    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
+
+                    info.agent_id = agent_id;
+                    info.party_id = current_party_id;
+                    info.type = AgentType::OTHER;
+                    info.player_number = 0; 
+
+                    if (agent && agent->GetIsLivingType()) {
+                        PopulateLivingAgentDetails(static_cast<GW::AgentLiving*>(agent), info);
+                    } else {
+                        info.primary_profession = 0;
+                        info.secondary_profession = 0;
+                        info.level = 0;
+                        info.team_id = 0;
+                        info.guild_id = 0;
+                        info.encoded_name = L""; 
+                    }
+
+                    match_info.UpdateAgentInfo(info);
+                    MaybeUpdateGuildInfo(info.guild_id, match_info);
+                }
+            }
+        }
+    }
+}
+
+AgentState ObserverLoop::GetAgentState(GW::Agent* agent) {
+    AgentState state; // create default state
+    if (!agent) return state; // return default state if agent is invalid
     
     // position and basic info
-    ss << agent->pos.x << L";" 
-       << agent->pos.y << L";" 
-       << agent->z << L";" // Use agent->z for Z coord
-       << agent->rotation_angle << L";";
+    state.x = agent->pos.x;
+    state.y = agent->pos.y;
+    state.z = agent->z;
+    state.rotation_angle = agent->rotation_angle;
     
-    // equipment and stats - simplified as this isn't readily available in standard GWCA
-    uint32_t weapon_id = 0; // default weapon id : to implement later
-    ss << weapon_id << L";"; // add the weapon id
+    // equipment and stats - simplified
+    state.weapon_id = 0; // default weapon id
     
     // living agent specific data
     if (agent->GetIsLivingType()) {
-        GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent); // cast to living agent
+        GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
         
         // health and status
-        bool is_alive = !living->GetIsDead(); // check if the agent is alive
-        bool is_dead = living->GetIsDead(); // check if the agent is dead
-        float health_pct = living->hp; // use living->hp directly
-        bool is_knocked = living->GetIsKnockedDown(); // use model state check
-        uint32_t life_hp = living->max_hp; // use living->max_hp
+        state.is_alive = !living->GetIsDead();
+        state.is_dead = living->GetIsDead();
+        state.health_pct = living->hp;
+        state.is_knocked = living->GetIsKnockedDown();
+        state.max_hp = living->max_hp;
         
-        ss << (is_alive ? L"1" : L"0") << L";" 
-           << (is_dead ? L"1" : L"0") << L";" 
-           << std::fixed << std::setprecision(3) << health_pct << L";" // format health % 
-           << (is_knocked ? L"1" : L"0") << L";"
-           << life_hp << L";";
+        // condition flags
+        state.has_condition = living->GetIsConditioned();
+        state.has_deep_wound = living->GetIsDeepWounded(); 
+        state.has_bleeding = living->GetIsBleeding(); 
+        state.has_crippled = living->GetIsCrippled(); 
+        state.has_blind = false; // placeholder - to implement later
+        state.has_poison = living->GetIsPoisoned();
+        state.has_hex = living->GetIsHexed();
+        state.has_degen_hex = living->GetIsDegenHexed(); 
         
-        // condition flags - using methods based on 'effects' bitmap
-        bool has_condition = living->GetIsConditioned();
-        bool has_deep_wound = living->GetIsDeepWounded(); 
-        bool has_bleeding = living->GetIsBleeding(); 
-        bool has_crippled = living->GetIsCrippled(); 
-        bool has_blind = false; // no simple GetIsBlinded() in AgentLiving effects bitmap // to implement later
-        bool has_poison = living->GetIsPoisoned();
-        bool has_hex = living->GetIsHexed(); // 
-        bool has_degen_hex = living->GetIsDegenHexed(); 
-        
-        // add the condition flags to the string stream
-        ss << (has_condition ? L"1" : L"0") << L";" 
-           << (has_deep_wound ? L"1" : L"0") << L";" 
-           << (has_bleeding ? L"1" : L"0") << L";" 
-           << (has_crippled ? L"1" : L"0") << L";" 
-           << (has_blind ? L"1" : L"0") << L";" 
-           << (has_poison ? L"1" : L"0") << L";" 
-           << (has_hex ? L"1" : L"0") << L";" 
-           << (has_degen_hex ? L"1" : L"0") << L";";
-        
-        // buff status - using methods based on 'effects' bitmap
-        bool has_enchantment = living->GetIsEnchanted(); // use GetIsEnchanted
-        bool has_weapon_spell = living->GetIsWeaponSpelled(); // use GetIsWeaponSpelled
-        
-        ss << (has_enchantment ? L"1" : L"0") << L";" 
-           << (has_weapon_spell ? L"1" : L"0") << L";";
+        // buff status
+        state.has_enchantment = living->GetIsEnchanted();
+        state.has_weapon_spell = living->GetIsWeaponSpelled();
         
         // action status
-        // check if agent is holding something (flag, item) based on model state
-        bool is_holding = (living->model_state & 0x400) != 0; // use living->model_state
-        
-        bool is_casting = living->GetIsCasting(); 
-        uint32_t skill_id = living->skill; 
-        
-        // add the action status to the string stream
-        ss << (is_holding ? L"1" : L"0") << L";" 
-           << (is_casting ? L"1" : L"0") << L";" 
-           << skill_id;
-    } else {
-        // non-living agent - fill with default values for consistent CSV format
-        ss << L"0;0;0;0;0;0;0.000;0;0;0;0;0;0;0;0;0;0;0;0;0;0;0"; // adjusted defaults for consistency
-    }
+        state.is_holding = (living->model_state & 0x400) != 0;
+        state.is_casting = living->GetIsCasting(); 
+        state.skill_id = living->skill; 
+
+    } 
     
-    return ss.str();
+    return state; 
 } 
+
+void ObserverLoop::PopulateLivingAgentDetails(GW::AgentLiving* living, AgentInfo& info) {
+    if (!living) return; 
+
+    info.primary_profession = living->primary;
+    info.secondary_profession = living->secondary;
+    
+    info.level = living->level;
+    info.team_id = living->team_id;
+
+    if (living->tags) { 
+        info.guild_id = living->tags->guild_id;
+    } else {
+        info.guild_id = 0; 
+    }
+
+    info.encoded_name = GW::Agents::GetAgentEncName(living); 
+}
+
+void ObserverLoop::MaybeUpdateGuildInfo(uint16_t guild_id, MatchInfo& match_info) {
+    if (guild_id == 0) return; // no guild to check
+
+    bool guild_known = false;
+    {
+        std::lock_guard<std::mutex> lock(match_info.guilds_info_mutex);
+        guild_known = match_info.guilds_info.count(guild_id);
+    }
+
+    if (!guild_known) {
+        GW::Guild* gw_guild = GW::GuildMgr::GetGuildInfo(guild_id);
+        if (gw_guild) {
+            GuildInfo guild_info;
+            guild_info.guild_id = guild_id;
+            guild_info.name = gw_guild->name;   
+            guild_info.tag = gw_guild->tag;    
+            guild_info.rank = gw_guild->rank;
+            guild_info.features = gw_guild->features;
+            guild_info.rating = gw_guild->rating;
+            guild_info.faction = gw_guild->faction;
+            guild_info.faction_points = gw_guild->faction_point; 
+            guild_info.qualifier_points = gw_guild->qualifier_point;
+            guild_info.cape = gw_guild->cape;
+            
+            match_info.UpdateGuildInfo(guild_info); 
+        }
+
+    }
+}
 
 bool ObserverLoop::IsRunning() const {
     return run_loop_.load();

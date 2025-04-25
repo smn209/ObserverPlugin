@@ -44,33 +44,20 @@ public:
         if (capture_handler) capture_handler->AddLogEntry(entry); 
     }
     
-    void ClearLogs() { 
-        if (capture_handler) capture_handler->ClearLogs(); 
-        if (loop_handler) loop_handler->ClearAgentLogs();
-    }
-    
-    bool ExportLogsToFolder(const wchar_t* folder_name) {
-        bool stoc_success = capture_handler ? capture_handler->ExportLogsToFolder(folder_name) : false;
-        bool agent_success = loop_handler ? loop_handler->ExportAgentLogs(folder_name) : false;
-        return stoc_success || agent_success;
-    }
-
-    void HandleMatchEnd();
-
     bool stoc_status = false; // master toggle 
-    bool log_skill_activations = false;
-    bool log_attack_skill_activations = false;
-    bool log_instant_skills = false;
+    bool log_skill_activations = true;
+    bool log_attack_skill_activations = true;
+    bool log_instant_skills = true;
     bool log_basic_attack_starts = false;
     bool log_basic_attack_stops = false;
-    bool log_skill_finishes = false;
-    bool log_skill_stops = false;
-    bool log_interrupts = false;
-    bool log_attack_skill_stops = false;
-    bool log_attack_skill_finishes = false;
-    bool log_basic_attack_finishes = false;
+    bool log_skill_finishes = true;
+    bool log_skill_stops = true;
+    bool log_interrupts = true;
+    bool log_attack_skill_stops = true;
+    bool log_attack_skill_finishes = true;
+    bool log_basic_attack_finishes = true;
     bool log_damage = false;
-    bool log_knockdowns = false;
+    bool log_knockdowns = true;
     bool log_movement = false;
 
     bool log_jumbo_base_under_attack = true;
@@ -87,9 +74,6 @@ public:
     bool auto_reset_name_on_match_end = false;
 
     char export_folder_name[128]; // buffer for folder name input
-
-private:
-    // visibility state is handled by plugin_visible in ToolboxUIPlugin base class
 
     // helper to generate default folder name
     void GenerateDefaultFolderName() {

@@ -1,6 +1,6 @@
 #include <windows.h>
 #include "ObserverCapture.h"
-#include "ObserverStoC.h" // include for marker definitions
+#include "ObserverStoC.h"
 
 #include <GWCA/Managers/MapMgr.h>
 #include <GWCA/Managers/ChatMgr.h>
@@ -12,10 +12,10 @@
 #include <stringapiset.h>
 #include <vector>
 #include <string>
-#include <sstream> // for wstringstream
-#include <zlib.h>  // for gzip compression (ensure zlib is linked)
-#include <stdexcept> // for runtime_error
-#include <map> // for storing category buffers
+#include <sstream> 
+#include <zlib.h>  
+#include <stdexcept>    
+#include <map> /
 
 ObserverCapture::ObserverCapture() {
 }
