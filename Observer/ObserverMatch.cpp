@@ -492,26 +492,3 @@ void ObserverMatch::HandleMatchEnd() {
          GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
     }
 }
-
-
-std::string EscapeWideStringForJSON(const std::wstring& wstr) {
-    std::stringstream ss;
-    ss << "\""; // start quote
-    for (wchar_t wc : wstr) {
-        if (wc >= 32 && wc <= 126) {
-            char c = static_cast<char>(wc);
-            if (c == '\"') {
-                ss << "\\\""; // escape quote
-            } else if (c == '\\') {
-                ss << "\\\\"; // escape backslash
-            } else {
-                ss << c; // append printable ASCII character
-            }
-        } else {
-            // ignore non-printable ASCII, control characters, and non-ASCII chars
-            continue;
-        }
-    }
-    ss << "\""; // end quote
-    return ss.str();
-}

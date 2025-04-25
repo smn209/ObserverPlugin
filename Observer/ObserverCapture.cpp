@@ -15,7 +15,7 @@
 #include <sstream> 
 #include <zlib.h>  
 #include <stdexcept>    
-#include <map> /
+#include <map>
 
 ObserverCapture::ObserverCapture() {
 }
