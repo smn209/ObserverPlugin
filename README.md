@@ -89,10 +89,8 @@ This section outlines the planned development milestones for the Observer Plugin
 | 0.3     | Filter StoC packet logging to only record during active matches.   | Yes  |
 | 0.4     | Capture and export Jumbo Messages (e.g., Victory, Morale Boost).   | Yes  |
 | 0.5     | Implement export functionality for all StoC packets within a match.| Yes  |
-| 0.6     | Identify and record match metadata (Teams, Guilds, Map Info).      |   |
-| 0.7     | Allow exporting either summary info or the full match data.        |   |
-| 0.8     | Agents effects (Poison, Deep wounds) on event start/left.          |   |
-| 0.9     | *(Reserved for further development)*                               |   |
+| 0.6     | Identify and record match metadata (Teams, Guilds, Map Info).      | Yes  |
+| 0.x     | *(Reserved for further development)*                               |   |
 | **1.0** | **Stable Release:** Reliable export of comprehensive match data.   |   |
 
 **Future Enhancements & Ideas:**
