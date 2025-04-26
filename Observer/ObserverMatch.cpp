@@ -522,3 +522,37 @@ bool ObserverMatch::IsObserving() const {
 MatchInfo& ObserverMatch::GetMatchInfo() {
     return current_match_info_;
 }
+std::string EscapeWideStringForJSON(const std::wstring& wstr) {
+    std::wstring result;
+    result.reserve(wstr.length());
+
+    for (wchar_t wc : wstr) {
+        switch (wc) {
+            case L'\\': result += L"\\\\"; break;
+            case L'"': result += L"\\\""; break;
+            case L'/': result += L"\\/"; break;
+            case L'\b': result += L"\\b"; break;
+            case L'\f': result += L"\\f"; break;
+            case L'\n': result += L"\\n"; break;
+            case L'\r': result += L"\\r"; break;
+            case L'\t': result += L"\\t"; break;
+            default:
+                if (wc < 32 || wc > 126) {
+                    std::wostringstream woss;
+                    woss << L"\\u" << std::hex << std::setw(4) << std::setfill(L'0') << static_cast<int>(wc);
+                    result += woss.str();
+                } else {
+                    result += wc;
+                }
+                break;
+        }
+    }
+
+    if (result.empty()) {
+        return "";
+    }
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &result[0], (int)result.size(), NULL, 0, NULL, NULL);
+    std::string utf8_str(size_needed, 0);
+    WideCharToMultiByte(CP_UTF8, 0, &result[0], (int)result.size(), &utf8_str[0], size_needed, NULL, NULL);
+    return utf8_str;
+}

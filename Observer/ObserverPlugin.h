@@ -75,4 +75,18 @@ public:
 
     // helper to generate default folder name
     void GenerateDefaultFolderName();
+
+    bool obs_show_match_ids = true;
+    bool obs_show_map_id = true;
+    bool obs_show_age = true;
+    bool obs_show_type = true;
+    bool obs_show_count = true;
+    bool obs_show_match_unknowns = true; 
+    bool obs_show_team1_name_dup = true;
+    bool obs_show_h007c_array = false; 
+    bool obs_show_team_id = true;
+    bool obs_show_team_name = true;
+    bool obs_show_team_unknowns = true; 
+    bool obs_show_cape_colors = true;  
+    bool obs_show_cape_design = true; 
 };

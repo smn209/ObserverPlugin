@@ -1,8 +1,8 @@
 #include "ObserverPlugin.h"
 #include "ObserverStoC.h"
-#include "ObserverMatch.h"
 #include "ObserverCapture.h"
 #include "ObserverLoop.h"
+#include "ObserverMatchData.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/MapMgr.h>
@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <stringapiset.h>
 #include <string>
+#include <cstdint>
 
 #include <windows.h>
 #include <stdio.h>
@@ -30,39 +31,24 @@
 #include <sstream>
 #include <mutex>
 
-#include <GWCA/GameEntities/Guild.h> 
+#include <GWCA/GameEntities/Guild.h>
+#include <GWCA/Context/CharContext.h>
 
-struct AgentInfo;
-struct GuildInfo; 
-class ObserverStoC;
-class ObserverMatch;
-class ObserverCapture;
-
-std::string EscapeWideStringForJSON(const std::wstring& wstr);
-
-std::string EscapeWideStringForJSON(const std::wstring& wstr) {
-    std::stringstream ss;
-    ss << "\""; // start quote
-    for (wchar_t wc : wstr) {
-        if (wc >= 32 && wc <= 126) {
-            char c = static_cast<char>(wc);
-            if (c == '\"') {
-                ss << "\\\""; // escape quote
-            } else if (c == '\\') {
-                ss << "\\\\"; // escape backslash
-            } else {
-                ss << c; // append printable ASCII character
-            }
-        } else {
-            // ignore non-printable ASCII, control characters, and non-ASCII chars
-            continue;
-        }
-    }
-    ss << "\""; // end quote
-    return ss.str();
-}
-
-ObserverPlugin::ObserverPlugin()
+ObserverPlugin::ObserverPlugin() :
+    obs_show_match_ids(true),
+    obs_show_map_id(true),
+    obs_show_age(true),
+    obs_show_type(true),
+    obs_show_count(true),
+    obs_show_match_unknowns(true),
+    obs_show_team1_name_dup(true),
+    obs_show_h007c_array(false), 
+    obs_show_team_id(true),
+    obs_show_team_name(true),
+    obs_show_team_unknowns(true),
+    obs_show_cape_colors(true),
+    obs_show_cape_design(true),
+    auto_reset_name_on_match_end(true) 
 {
     stoc_handler = new ObserverStoC(this);
     match_handler = new ObserverMatch(stoc_handler);
@@ -80,6 +66,20 @@ ObserverPlugin::ObserverPlugin()
 
     // register instance load callback to detect observer mode
     match_handler->RegisterCallbacks();
+
+    PLUGIN_LOAD_BOOL(obs_show_match_ids);
+    PLUGIN_LOAD_BOOL(obs_show_map_id);
+    PLUGIN_LOAD_BOOL(obs_show_age);
+    PLUGIN_LOAD_BOOL(obs_show_type);
+    PLUGIN_LOAD_BOOL(obs_show_count);
+    PLUGIN_LOAD_BOOL(obs_show_match_unknowns);
+    PLUGIN_LOAD_BOOL(obs_show_team1_name_dup);
+    PLUGIN_LOAD_BOOL(obs_show_h007c_array);
+    PLUGIN_LOAD_BOOL(obs_show_team_id);
+    PLUGIN_LOAD_BOOL(obs_show_team_name);
+    PLUGIN_LOAD_BOOL(obs_show_team_unknowns);
+    PLUGIN_LOAD_BOOL(obs_show_cape_colors);
+    PLUGIN_LOAD_BOOL(obs_show_cape_design);
 }
 
 // destructor needs to be defined if we manually delete handlers
@@ -140,6 +140,20 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     
     PLUGIN_LOAD_BOOL(auto_export_on_match_end);
     PLUGIN_LOAD_BOOL(auto_reset_name_on_match_end);
+
+    PLUGIN_LOAD_BOOL(obs_show_match_ids);
+    PLUGIN_LOAD_BOOL(obs_show_map_id);
+    PLUGIN_LOAD_BOOL(obs_show_age);
+    PLUGIN_LOAD_BOOL(obs_show_type);
+    PLUGIN_LOAD_BOOL(obs_show_count);
+    PLUGIN_LOAD_BOOL(obs_show_match_unknowns);
+    PLUGIN_LOAD_BOOL(obs_show_team1_name_dup);
+    PLUGIN_LOAD_BOOL(obs_show_h007c_array);
+    PLUGIN_LOAD_BOOL(obs_show_team_id);
+    PLUGIN_LOAD_BOOL(obs_show_team_name);
+    PLUGIN_LOAD_BOOL(obs_show_team_unknowns);
+    PLUGIN_LOAD_BOOL(obs_show_cape_colors);
+    PLUGIN_LOAD_BOOL(obs_show_cape_design);
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
@@ -173,6 +187,20 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     
     PLUGIN_SAVE_BOOL(auto_export_on_match_end);
     PLUGIN_SAVE_BOOL(auto_reset_name_on_match_end);
+
+    PLUGIN_SAVE_BOOL(obs_show_match_ids);
+    PLUGIN_SAVE_BOOL(obs_show_map_id);
+    PLUGIN_SAVE_BOOL(obs_show_age);
+    PLUGIN_SAVE_BOOL(obs_show_type);
+    PLUGIN_SAVE_BOOL(obs_show_count);
+    PLUGIN_SAVE_BOOL(obs_show_match_unknowns);
+    PLUGIN_SAVE_BOOL(obs_show_team1_name_dup);
+    PLUGIN_SAVE_BOOL(obs_show_h007c_array);
+    PLUGIN_SAVE_BOOL(obs_show_team_id);
+    PLUGIN_SAVE_BOOL(obs_show_team_name);
+    PLUGIN_SAVE_BOOL(obs_show_team_unknowns);
+    PLUGIN_SAVE_BOOL(obs_show_cape_colors);
+    PLUGIN_SAVE_BOOL(obs_show_cape_design);
 }
 
 // draws the generic UI settings in the main settings panel
@@ -517,6 +545,113 @@ void ObserverPlugin::Draw(
             ImGui::TreePop();
         }
 
+        if (ImGui::TreeNodeEx("Available Observer Matches", ImGuiTreeNodeFlags_DefaultOpen)) {
+            ImGui::Indent();
+
+            if (ImGui::TreeNode("Display Options")) {
+                ImGui::Columns(2, "ObsDisplayOptions", false);
+                ImGui::Checkbox("Match IDs##Obs", &obs_show_match_ids);
+                ImGui::Checkbox("Map ID##Obs", &obs_show_map_id);
+                ImGui::Checkbox("Age##Obs", &obs_show_age);
+                ImGui::Checkbox("Type##Obs", &obs_show_type);
+                ImGui::Checkbox("Count##Obs", &obs_show_count);
+                ImGui::Checkbox("Match Unknowns##Obs", &obs_show_match_unknowns);
+                ImGui::Checkbox("Team 1 Name Dup##Obs", &obs_show_team1_name_dup);
+                ImGui::Checkbox("H007C Array##Obs", &obs_show_h007c_array);
+                ImGui::NextColumn();
+                ImGui::Checkbox("Team ID##Obs", &obs_show_team_id);
+                ImGui::Checkbox("Team Name##Obs", &obs_show_team_name);
+                ImGui::Checkbox("Team Unknowns##Obs", &obs_show_team_unknowns);
+                ImGui::Checkbox("Cape Colors##Obs", &obs_show_cape_colors);
+                ImGui::Checkbox("Cape Design##Obs", &obs_show_cape_design);
+                ImGui::Columns(1);
+                ImGui::TreePop();
+                ImGui::Separator();
+            }
+
+
+            if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
+                GW::CharContext* cc = GW::GetCharContext();
+                GW::Array<ObserverData::MatchDetails*>* observer_matchs_ptr = nullptr;
+                if (cc) {
+                    uintptr_t char_context_base = reinterpret_cast<uintptr_t>(cc);
+                    uintptr_t observer_matchs_address = char_context_base + 0x24C;
+                    observer_matchs_ptr = reinterpret_cast<GW::Array<ObserverData::MatchDetails*>*>(observer_matchs_address);
+                }
+
+                if (!observer_matchs_ptr || !observer_matchs_ptr->valid()) {
+                    ImGui::TextDisabled("Character context or observer match data not available.");
+                } else {
+                    std::map<uint32_t, std::vector<ObserverData::MatchDetails*>> type_map;
+                    for (ObserverData::MatchDetails* om : *observer_matchs_ptr) {
+                        if (!om) continue;
+                        type_map[om->type].push_back(om);
+                    }
+
+                    if (type_map.empty()) {
+                         ImGui::TextDisabled("No observer matches available.");
+                    }
+
+                    for (auto &m : type_map) {
+                        std::string type_name = ObserverData::GetMatchTypeName(m.first);
+                        if (ImGui::TreeNode(type_name.c_str())) {
+                            for (ObserverData::MatchDetails* o : m.second) {
+                                if (!o) continue;
+
+                                if (obs_show_match_ids) {
+                                    ImGui::Text("Match ID: %u (Dup: %u)", o->match_id, o->match_id_dup); ImGui::SameLine();
+                                }
+                                if (obs_show_map_id) {
+                                     ImGui::Text("Map ID: %u", o->map_id); ImGui::SameLine();
+                                }
+                                if (obs_show_type) {
+                                    ImGui::Text("Type: %u (%s)", o->type, ObserverData::GetMatchTypeName(o->type).c_str()); ImGui::SameLine();
+                                }
+                                ImGui::NewLine();
+
+                                if (obs_show_age) {
+                                    ImGui::Text("  Age: %ums", o->age); ImGui::SameLine();
+                                }
+                                if (obs_show_count) {
+                                     ImGui::Text("Count: %u", o->count); ImGui::SameLine();
+                                }
+                                if (obs_show_match_unknowns) {
+                                     ImGui::Text("Unknowns: h0014=0x%X, h0018=0x%X", o->h0014, o->h0018); ImGui::SameLine();
+                                }
+                                ImGui::NewLine();
+
+                                if (obs_show_team1_name_dup) {
+                                    std::string team1_dup_str = ObserverData::SafeWcharToString(o->team1_name_dup);
+                                    ImGui::Text("  Team1 Name Dup: %s", team1_dup_str.c_str());
+                                }
+
+                                ObserverData::DrawObserverTeam(0, &o->team[0], obs_show_team_id, obs_show_team_name, obs_show_team_unknowns, obs_show_cape_colors, obs_show_cape_design);
+                                ObserverData::DrawObserverTeam(1, &o->team[1], obs_show_team_id, obs_show_team_name, obs_show_team_unknowns, obs_show_cape_colors, obs_show_cape_design);
+
+                                if (obs_show_h007c_array) {
+                                    ImGui::TextUnformatted("  h007C Array:");
+                                    ImGui::Indent();
+                                    std::stringstream ss_h007c;
+                                    for (int i = 0; i < 10; ++i) {
+                                        ss_h007c << "[ " << i << "]=0x" << std::hex << o->h007C[i] << (i == 4 ? "\n    " : " ");
+                                    }
+                                    ImGui::TextUnformatted(ss_h007c.str().c_str());
+                                    ImGui::Unindent();
+                                }
+
+                                ImGui::Separator();
+                            }
+                            ImGui::TreePop();
+                        }
+                    }
+                }
+            } else {
+                ImGui::TextDisabled("Only available in an outpost instance.");
+            }
+
+            ImGui::Unindent();
+            ImGui::TreePop();
+        }
         ImGui::Separator();
 
         ImGui::Checkbox("Enable StoC logging chat", &stoc_status); 

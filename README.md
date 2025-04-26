@@ -40,6 +40,8 @@ target_sources(Observer PRIVATE
     "plugins/Observer/ObserverLoop.h"
     "plugins/Observer/ObserverPlugin.cpp"
     "plugins/Observer/ObserverPlugin.h"
+    "plugins/Observer/ObserverMatchData.h"
+    "plugins/Observer/ObserverMatchData.cpp"
     "plugins/Observer/dllmain.cpp"
 )
 target_include_directories(Observer PRIVATE
