@@ -8,6 +8,15 @@ The Observer Plugin is a utility for [Guild Wars](https://www.guildwars.com/), d
 
 *Special thanks to the GWToolbox++ team for creating the plugin system that makes this possible!*
 
+> [!CAUTION]
+> **Dependency Requirement:** The Match Compositions window feature requires the `Resources::GetSkillImage(skill_id)` function from GWToolbox++. This function is only exported in GWToolbox++ versions 7.3 and later.
+>
+> Please ensure you are using GWToolbox++ v7.3+ or a custom build with this function exported. See [GWToolbox++ PR #1407](https://github.com/gwdevhub/GWToolboxpp/pull/1407) for technical details.
+>
+> If you want to use it now you can use the GWToolboxpp builded on ObserverPlugin release 0.7 which is Master 7.3 with edited pragma line from PR [GWToolbox++ PR #1407](https://github.com/gwdevhub/GWToolboxpp/pull/1407). You can also use it if you build your own Toolbox Build on current `dev` branch.
+
+ 
+
 ## Installation & Usage
 
 To use the Observer Plugin:
@@ -34,6 +43,16 @@ This is the primary control window for the plugin.
     *   `Auto Reset Name`: Automatically generates a new timestamped name after a match ends.
 *   **Debug Windows:** Contains toggles to show/hide the various debug information windows.
 *   **Note:** Reminds you that captured data stays in memory until a new observer session starts.
+
+### Windows
+This section describes windows designed to provide helpful information or features during gameplay.
+
+![Debug Window Toggles](Assets/Windows.png)
+
+#### Match Compositions
+Displays the current team compositions for the observed match. For each player, hero, and henchman, it shows their name, profession, and equipped skills, including elite skill highlighting.
+
+![Match Compositions Window](Assets/Match_Compositions.png)
 
 ### Debug Windows
 
@@ -177,6 +196,7 @@ This section outlines the planned development milestones for the Observer Plugin
 | 0.4     | Capture and export Jumbo Messages (e.g., Victory, Morale Boost).   | Yes  |
 | 0.5     | Implement export functionality for all StoC packets within a match.| Yes  |
 | 0.6     | Identify and record match metadata (Teams, Guilds, Map Info).      | Yes  |
+| 0.7     | Match compositions window                                          | Yes  |
 | 0.x     | *(Reserved for further development)*                               |   |
 | **1.0** | **Stable Release:** Reliable export of comprehensive match data.   |   |
 
