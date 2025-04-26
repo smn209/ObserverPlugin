@@ -96,60 +96,65 @@ Allows you to toggle real-time display of specific Server-to-Client (StoC) event
 If you wish to contribute or build the plugin from the source code, follow these steps:
 
 1.  **Set up the GWToolbox++ Development Environment:** Ensure you have a working build environment for GWToolbox++. Follow the setup guide in the [official GWToolbox++ repository](https://github.com/gwdevhub/GWToolboxpp/blob/master/README.md).
-2.  **Clone the Repository:** Clone this Observer Plugin repository into the `plugins/` subdirectory of your GWToolbox++ source directory (e.g., `path/to/GWToolboxpp/plugins/Observer`). Note: The plugin folder *must* be named `Observer` for the build system to find it correctly.
+2.  **Clone the Repository:** Clone this Observer Plugin repository into the `plugins/` subdirectory of your GWToolbox++ source directory (e.g., `path/to/GWToolboxpp/plugins/Observer`). Note: The plugin folder *must* be named `Observer` for the build system to find it correctly. You should have `plugins/ObserverPlugin/Observer/Debug` for example.
 3.  **Update CMake Configuration:** Modify the `GWToolboxpp/cmake/gwtoolboxdll_plugins.cmake` file by adding the following configuration block to register the plugin with the build system:
 ```cmake
-
 # === Observer Plugin ===
 # Requires ZLIB for log compression
 find_package(ZLIB REQUIRED)
 
 add_library(Observer SHARED)
 target_sources(Observer PRIVATE
-    "plugins/Observer/ObserverStoC.cpp"
-    "plugins/Observer/ObserverStoC.h"
-    "plugins/Observer/ObserverMatch.cpp"
-    "plugins/Observer/ObserverMatch.h"
-    "plugins/Observer/ObserverCapture.cpp"
-    "plugins/Observer/ObserverCapture.h"
-    "plugins/Observer/ObserverLoop.cpp"
-    "plugins/Observer/ObserverLoop.h"
-    "plugins/Observer/ObserverPlugin.cpp"
-    "plugins/Observer/ObserverPlugin.h"
-    "plugins/Observer/ObserverMatchData.h"
-    "plugins/Observer/ObserverMatchData.cpp"
-    "plugins/Observer/Debug/StoCLogWindow.h"
-    "plugins/Observer/Debug/StoCLogWindow.cpp"
-    "plugins/Observer/Debug/LivePartyInfoWindow.h"
-    "plugins/Observer/Debug/LivePartyInfoWindow.cpp"
-    "plugins/Observer/Debug/LiveGuildInfoWindow.h"
-    "plugins/Observer/Debug/LiveGuildInfoWindow.cpp"
-    "plugins/Observer/Debug/AvailableMatchesWindow.h"
-    "plugins/Observer/Debug/AvailableMatchesWindow.cpp"
-    "plugins/Observer/Debug/CaptureStatusWindow.h"
-    "plugins/Observer/Debug/CaptureStatusWindow.cpp"
-    "plugins/Observer/dllmain.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverStoC.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverStoC.h"
+    "plugins/ObserverPlugin/Observer/ObserverMatch.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverMatch.h"
+    "plugins/ObserverPlugin/Observer/ObserverCapture.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverCapture.h"
+    "plugins/ObserverPlugin/Observer/ObserverLoop.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverLoop.h"
+    "plugins/ObserverPlugin/Observer/ObserverPlugin.cpp"
+    "plugins/ObserverPlugin/Observer/ObserverPlugin.h"
+    "plugins/ObserverPlugin/Observer/ObserverMatchData.h"
+    "plugins/ObserverPlugin/Observer/ObserverMatchData.cpp"
+    "plugins/ObserverPlugin/Observer/Debug/StoCLogWindow.h"
+    "plugins/ObserverPlugin/Observer/Debug/StoCLogWindow.cpp"
+    "plugins/ObserverPlugin/Observer/Debug/LivePartyInfoWindow.h"
+    "plugins/ObserverPlugin/Observer/Debug/LivePartyInfoWindow.cpp"
+    "plugins/ObserverPlugin/Observer/Debug/LiveGuildInfoWindow.h"
+    "plugins/ObserverPlugin/Observer/Debug/LiveGuildInfoWindow.cpp"
+    "plugins/ObserverPlugin/Observer/Debug/AvailableMatchesWindow.h"
+    "plugins/ObserverPlugin/Observer/Debug/AvailableMatchesWindow.cpp"
+    "plugins/ObserverPlugin/Observer/Debug/CaptureStatusWindow.h"
+    "plugins/ObserverPlugin/Observer/Debug/CaptureStatusWindow.cpp"
+    "plugins/ObserverPlugin/Observer/dllmain.cpp"
 )
 target_include_directories(Observer PRIVATE
-    "plugins/Observer"
+    "plugins/ObserverPlugin/Observer"
 )
+
+target_link_directories(Observer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Dependencies/GWCA/lib)
+
 target_link_libraries(Observer PRIVATE
     plugin_base
-    GWCA # Required for game context access
+    GWCA 
     ZLIB::ZLIB
+    GWToolboxdll # Explicitly link for Resources::GetSkillImage
 )
 target_compile_definitions(Observer PRIVATE WIN32)
-# Common compile options (consider inheriting from plugin_base defaults if appropriate)
-target_compile_options(Observer PRIVATE /W4 /WX /Gy /wd4201 /wd4505)
+
+target_compile_features(Observer PRIVATE cxx_std_23)
+
+target_compile_options(Observer PRIVATE /FI"algorithm")
+
+target_compile_options(Observer PRIVATE /W4 /WX /Gy /wd4201 /wd4505 /wd4996)
 target_compile_options(Observer PRIVATE $<$<NOT:$<CONFIG:Debug>>:/GL>)
 target_compile_options(Observer PRIVATE $<$<CONFIG:Debug>:/ZI /Od>)
-# Common link options (consider inheriting from plugin_base defaults if appropriate)
 target_link_options(Observer PRIVATE /WX /OPT:REF /OPT:ICF /SAFESEH:NO)
 target_link_options(Observer PRIVATE $<$<NOT:$<CONFIG:Debug>>:/LTCG /INCREMENTAL:NO>)
 target_link_options(Observer PRIVATE $<$<CONFIG:Debug>:/IGNORE:4098 /OPT:NOREF /OPT:NOICF>)
 target_link_options(Observer PRIVATE $<$<CONFIG:RelWithDebInfo>:/OPT:NOICF>)
 set_target_properties(Observer PROPERTIES FOLDER "plugins/")
-
 ```
 
 > [!CAUTION]
