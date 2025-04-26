@@ -354,13 +354,22 @@ void ObserverPlugin::Draw(
 
         // --- Debug Windows Toggles --- 
         if (ImGui::TreeNode("Debug Windows")) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
+            ImGui::TextWrapped("This section provides access to various windows displaying detailed real-time information useful for debugging the observer plugin, understanding game state, or analyzing captured match data.");
+            ImGui::PopStyleColor();
+            ImGui::Separator();
             ImGui::Columns(2, "DebugWinToggles", false);
             ImGui::Checkbox("Capture Status", &show_capture_status_window);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the status of internal StoC event and Agent state capture.");
             ImGui::Checkbox("Live Party Info", &show_live_party_info_window);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Displays live information about agents (players, heroes, henchmen) currently detected in the instance, grouped by party.");
             ImGui::Checkbox("Live Guild Info", &show_live_guild_info_window);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Displays live information about guilds detected in the instance.");
             ImGui::NextColumn();
             ImGui::Checkbox("Available Matches", &show_available_matches_window);
-            ImGui::Checkbox("StoC Log Options", &show_stoc_log_window);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Lists observer matches available in the current outpost, with display options.");
+            ImGui::Checkbox("StoC Logs Chat", &show_stoc_log_window);
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Provides options to toggle the display of various StoC event logs in the game chat.");
             ImGui::Columns(1);
             ImGui::TreePop();
         }
