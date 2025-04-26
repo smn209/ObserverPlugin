@@ -9,6 +9,13 @@
 #include <iomanip> 
 #include <sstream>
 
+#include <GWCA/Managers/SkillbarMgr.h>
+#include <GWCA/Managers/UIMgr.h>
+#include <Modules/Resources.h>
+
+#include <GWCA/GameEntities/Skill.h>
+#include <d3d9.h>
+
 #include "ObserverMatch.h"
 #include "ObserverCapture.h"
 #include "ObserverLoop.h"
@@ -17,6 +24,9 @@
 #include "Debug/LiveGuildInfoWindow.h"
 #include "Debug/AvailableMatchesWindow.h"
 #include "Debug/StoCLogWindow.h"
+#include "Windows/MatchCompositionsWindow.h"
+
+class MatchCompositionsSettingsWindow;
 
 class ObserverStoC;
 
@@ -100,8 +110,17 @@ public:
     bool obs_show_cape_colors = true;  
     bool obs_show_cape_design = true; 
 
-    // helper to generate default folder name
+    // match Details Window toggle
+    bool show_match_compositions_window = false;
+
+    // match Details Settings Window toggle
+    bool show_match_compositions_settings_window = false;
+
     void GenerateDefaultFolderName();
+
+    // public helper functions for use by other classes in the plugin
+    std::string WStringToString(const std::wstring_view str);
+    std::wstring StringToWString(const std::string_view str);
 
 private:
     CaptureStatusWindow capture_status_window;
@@ -109,4 +128,6 @@ private:
     LiveGuildInfoWindow live_guild_info_window;
     AvailableMatchesWindow available_matches_window; 
     StoCLogWindow stoc_log_window;                 
+    MatchCompositionsWindow match_compositions_window_;
+    MatchCompositionsSettingsWindow* match_compositions_settings_window_ = nullptr; 
 };

@@ -34,6 +34,11 @@
 #include <GWCA/GameEntities/Guild.h>
 #include <GWCA/Context/CharContext.h>
 
+#include <Modules/Resources.h>
+#include <Utils/TextUtils.h>
+
+#include "Windows/MatchCompositionsSettingsWindow.h"
+
 ObserverPlugin::ObserverPlugin() :
     obs_show_match_ids(true),
     obs_show_map_id(true),
@@ -48,13 +53,17 @@ ObserverPlugin::ObserverPlugin() :
     obs_show_team_unknowns(true),
     obs_show_cape_colors(true),
     obs_show_cape_design(true),
-    auto_reset_name_on_match_end(true) 
+    auto_reset_name_on_match_end(true),
+    show_match_compositions_window(false),
+    show_match_compositions_settings_window(false) 
 {
     stoc_handler = new ObserverStoC(this);
     match_handler = new ObserverMatch(stoc_handler);
     match_handler->SetOwnerPlugin(this);
     capture_handler = new ObserverCapture();
     loop_handler = new ObserverLoop(this, match_handler);
+
+    match_compositions_settings_window_ = new MatchCompositionsSettingsWindow();
 
     // generate an initial default folder name based on current time
     GenerateDefaultFolderName();
@@ -80,6 +89,8 @@ ObserverPlugin::ObserverPlugin() :
     PLUGIN_LOAD_BOOL(obs_show_team_unknowns);
     PLUGIN_LOAD_BOOL(obs_show_cape_colors);
     PLUGIN_LOAD_BOOL(obs_show_cape_design);
+    PLUGIN_LOAD_BOOL(show_match_compositions_window);
+    PLUGIN_LOAD_BOOL(show_match_compositions_settings_window);
 }
 
 // destructor needs to be defined if we manually delete handlers
@@ -100,6 +111,10 @@ ObserverPlugin::~ObserverPlugin()
     if (loop_handler) {
         delete loop_handler;
         loop_handler = nullptr;
+    }
+    if (match_compositions_settings_window_) {
+        delete match_compositions_settings_window_;
+        match_compositions_settings_window_ = nullptr;
     }
 }
 
@@ -159,6 +174,8 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(obs_show_team_unknowns);
     PLUGIN_LOAD_BOOL(obs_show_cape_colors);
     PLUGIN_LOAD_BOOL(obs_show_cape_design);
+    PLUGIN_LOAD_BOOL(show_match_compositions_window);
+    PLUGIN_LOAD_BOOL(show_match_compositions_settings_window);
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
@@ -211,6 +228,8 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(obs_show_team_unknowns);
     PLUGIN_SAVE_BOOL(obs_show_cape_colors);
     PLUGIN_SAVE_BOOL(obs_show_cape_design);
+    PLUGIN_SAVE_BOOL(show_match_compositions_window);
+    PLUGIN_SAVE_BOOL(show_match_compositions_settings_window);
 }
 
 // draws the generic UI settings in the main settings panel
@@ -315,12 +334,10 @@ void ObserverPlugin::Draw(
             ImGui::SameLine();
              if (ImGui::Button("Export")) {
                 if (strlen(export_folder_name) > 0) {
-                    wchar_t wfoldername[sizeof(export_folder_name)];
-                    size_t converted = 0;
-                    errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE);
-                    if (err == 0) {
+                    std::wstring wfoldername = StringToWString(export_folder_name);
+                    if (!wfoldername.empty()) {
                         if (match_handler) {
-                           match_handler->ExportLogsToFolder(wfoldername);
+                           match_handler->ExportLogsToFolder(wfoldername.c_str());
                         } else {
                             GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error: Match handler not available.");
                         }
@@ -348,6 +365,17 @@ void ObserverPlugin::Draw(
 
             ImGui::Unindent();
             ImGui::TreePop(); 
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // --- Windows Toggles --- 
+        if (ImGui::TreeNode("Windows")) {
+             ImGui::Checkbox("Match Compositions", &show_match_compositions_window);
+             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the match compositions window (Teams, Players, Skills).");
+             ImGui::Checkbox("Match Compositions Settings", &show_match_compositions_settings_window);
+             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens settings for the Match Compositions window.");
+             ImGui::TreePop();
         }
         ImGui::Separator();
         ImGui::Spacing();
@@ -398,4 +426,52 @@ void ObserverPlugin::Draw(
     if (show_stoc_log_window) {
         stoc_log_window.Draw(*this, show_stoc_log_window);
     }
+
+    if (show_match_compositions_settings_window && match_compositions_settings_window_) {
+        match_compositions_settings_window_->Draw(*this, show_match_compositions_settings_window);
+    }
+
+    if (show_match_compositions_window) {
+        match_compositions_window_.Draw(*this, show_match_compositions_window); 
+    }
+}
+
+std::string ObserverPlugin::WStringToString(const std::wstring_view str) {
+    if (str.empty()) {
+        return "";
+    }
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), nullptr, 0, nullptr, nullptr);
+    if (size_needed <= 0) { // fallback to ANSI if UTF8 fails (like original TextUtils)
+         size_needed = WideCharToMultiByte(CP_ACP, 0, str.data(), static_cast<int>(str.size()), nullptr, 0, nullptr, nullptr);
+    }
+    if (size_needed <= 0) return ""; // failed conversion
+
+    std::string dest(size_needed, 0);
+    int bytes_converted = WideCharToMultiByte(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), dest.data(), size_needed, nullptr, nullptr);
+     if (bytes_converted <= 0) { // fal lback to ANSI if UTF8 fails
+        bytes_converted = WideCharToMultiByte(CP_ACP, 0, str.data(), static_cast<int>(str.size()), dest.data(), size_needed, nullptr, nullptr);
+     }
+    if (bytes_converted <= 0) return ""; // failed conversion
+
+    return dest;
+}
+
+std::wstring ObserverPlugin::StringToWString(const std::string_view str) {
+    if (str.empty()) {
+        return L"";
+    }
+    int size_needed = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, str.data(), static_cast<int>(str.size()), nullptr, 0);
+     if (size_needed <= 0) { // fallback to ANSI if UTF8 fails (like original TextUtils)
+         size_needed = MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS, str.data(), static_cast<int>(str.size()), nullptr, 0);
+     }
+    if (size_needed <= 0) return L""; // failed conversion
+
+    std::wstring dest(size_needed, 0);
+    int chars_converted = MultiByteToWideChar(CP_UTF8, 0, str.data(), static_cast<int>(str.size()), dest.data(), size_needed);
+     if (chars_converted <= 0) { // fallback to ANSI if UTF8 fails
+         chars_converted = MultiByteToWideChar(CP_ACP, 0, str.data(), static_cast<int>(str.size()), dest.data(), size_needed);
+     }
+    if (chars_converted <= 0) return L""; // failed conversion
+
+    return dest;
 }

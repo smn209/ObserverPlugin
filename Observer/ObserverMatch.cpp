@@ -20,6 +20,8 @@
 #include <algorithm>  
 #include <windows.h>  
 
+#include <Utils/TextUtils.h>
+
 std::string EscapeWideStringForJSON(const std::wstring& wstr);
 
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
@@ -363,26 +365,26 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                         if (!first_guild) outfile << ",\n";
                         std::string escaped_name = EscapeWideStringForJSON(guild_info.name);
                         std::string escaped_tag = EscapeWideStringForJSON(guild_info.tag);
-                        outfile << "    \"" << guild_id << "\": {"
-                                << "\"id\": " << guild_info.guild_id
-                                << ", \"name\": " << escaped_name
-                                << ", \"tag\": " << escaped_tag
-                                << ", \"rank\": " << guild_info.rank
-                                << ", \"features\": " << guild_info.features
-                                << ", \"rating\": " << guild_info.rating
-                                << ", \"faction\": " << guild_info.faction
-                                << ", \"faction_points\": " << guild_info.faction_points
-                                << ", \"qualifier_points\": " << guild_info.qualifier_points
-                                << ", \"cape\": { "
-                                << "\"bg_color\": " << guild_info.cape.cape_bg_color << ", "
-                                << "\"detail_color\": " << guild_info.cape.cape_detail_color << ", "
-                                << "\"emblem_color\": " << guild_info.cape.cape_emblem_color << ", "
-                                << "\"shape\": " << guild_info.cape.cape_shape << ", "
-                                << "\"detail\": " << guild_info.cape.cape_detail << ", "
-                                << "\"emblem\": " << guild_info.cape.cape_emblem << ", "
-                                << "\"trim\": " << guild_info.cape.cape_trim
-                                << " }"
-                                << " }";
+                        outfile << "    \"" << guild_id << "\": {" << std::endl
+                                << "      \"id\": " << guild_info.guild_id << "," << std::endl
+                                << "      \"name\": " << escaped_name << "," << std::endl
+                                << "      \"tag\": " << escaped_tag << "," << std::endl
+                                << "      \"rank\": " << guild_info.rank << "," << std::endl
+                                << "      \"features\": " << guild_info.features << "," << std::endl
+                                << "      \"rating\": " << guild_info.rating << "," << std::endl
+                                << "      \"faction\": " << guild_info.faction << "," << std::endl
+                                << "      \"faction_points\": " << guild_info.faction_points << "," << std::endl
+                                << "      \"qualifier_points\": " << guild_info.qualifier_points << "," << std::endl
+                                << "      \"cape\": { " << std::endl
+                                << "          \"bg_color\": " << guild_info.cape.cape_bg_color << "," << std::endl
+                                << "          \"detail_color\": " << guild_info.cape.cape_detail_color << "," << std::endl
+                                << "          \"emblem_color\": " << guild_info.cape.cape_emblem_color << "," << std::endl
+                                << "          \"shape\": " << guild_info.cape.cape_shape << "," << std::endl
+                                << "          \"detail\": " << guild_info.cape.cape_detail << "," << std::endl
+                                << "          \"emblem\": " << guild_info.cape.cape_emblem << "," << std::endl
+                                << "          \"trim\": " << guild_info.cape.cape_trim << std::endl
+                                << "        }" << std::endl
+                                << "      }";
                         first_guild = false;
                     }
                     outfile << "\n  ";
@@ -412,7 +414,10 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
             GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Loop handler invalid (via owner plugin), cannot export Agent logs.");
         }
 
-        any_success = infos_success || stoc_success || agent_success;
+        if (!owner_plugin) {
+            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error: ObserverPlugin instance not available for string conversion in export.");
+            return false; 
+        }
 
     } catch (const std::filesystem::filesystem_error& e) {
         std::string error_msg_str = "Filesystem error during export: ";
@@ -484,10 +489,10 @@ void ObserverMatch::HandleMatchEnd() {
     }
 
     if (owner_plugin && owner_plugin->auto_reset_name_on_match_end) {
-        owner_plugin->GenerateDefaultFolderName(); 
-        wchar_t msg[512];
-        swprintf_s(msg, L"Auto-resetting Match Name to '%hs'.", owner_plugin->export_folder_name); 
-        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg);
+        owner_plugin->GenerateDefaultFolderName();
+        std::string name_s(owner_plugin->export_folder_name);
+        std::wstring msg_w = L"Auto-resetting Match Name to '" + owner_plugin->StringToWString(name_s) + L"'.";
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, msg_w.c_str());
     } else {
          GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
     }

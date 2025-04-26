@@ -128,6 +128,10 @@ target_sources(Observer PRIVATE
     "plugins/ObserverPlugin/Observer/Debug/CaptureStatusWindow.h"
     "plugins/ObserverPlugin/Observer/Debug/CaptureStatusWindow.cpp"
     "plugins/ObserverPlugin/Observer/dllmain.cpp"
+    "plugins/ObserverPlugin/Observer/Windows/MatchCompositionsWindow.h"
+    "plugins/ObserverPlugin/Observer/Windows/MatchCompositionsWindow.cpp"
+    "plugins/ObserverPlugin/Observer/Windows/MatchCompositionsSettingsWindow.h"
+    "plugins/ObserverPlugin/Observer/Windows/MatchCompositionsSettingsWindow.cpp"
 )
 target_include_directories(Observer PRIVATE
     "plugins/ObserverPlugin/Observer"
