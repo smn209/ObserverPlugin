@@ -12,6 +12,11 @@
 #include "ObserverMatch.h"
 #include "ObserverCapture.h"
 #include "ObserverLoop.h"
+#include "Debug/CaptureStatusWindow.h"
+#include "Debug/LivePartyInfoWindow.h"
+#include "Debug/LiveGuildInfoWindow.h"
+#include "Debug/AvailableMatchesWindow.h"
+#include "Debug/StoCLogWindow.h"
 
 class ObserverStoC;
 
@@ -29,8 +34,8 @@ public:
     void Draw(IDirect3DDevice9* pDevice) override;
 
     // settings load/save/draw
-    void LoadSettings(const wchar_t*) override;
-    void SaveSettings(const wchar_t*) override;
+    void LoadSettings(const wchar_t* folder) override;
+    void SaveSettings(const wchar_t* folder) override;
     void DrawSettings() override; // draws generic UI settings in the main panel
 
     // handlers for different aspects of observer mode
@@ -42,6 +47,19 @@ public:
     // proxy methods for log capture
     void AddLogEntry(const wchar_t* entry);
     
+    // Main window controls
+    bool auto_export_on_match_end = false;
+    bool auto_reset_name_on_match_end = false;
+    char export_folder_name[128]; // buffer for folder name input
+
+    // Debug window visibility
+    bool show_capture_status_window = false;
+    bool show_live_party_info_window = false;
+    bool show_live_guild_info_window = false;
+    bool show_available_matches_window = false;
+    bool show_stoc_log_window = false; 
+
+    // StoC logging settings (used by StoCLog section in debug window)
     bool stoc_status = false; // master toggle 
     bool log_skill_activations = true;
     bool log_attack_skill_activations = true;
@@ -57,7 +75,6 @@ public:
     bool log_damage = false;
     bool log_knockdowns = true;
     bool log_movement = false;
-
     bool log_jumbo_base_under_attack = true;
     bool log_jumbo_guild_lord_under_attack = true;
     bool log_jumbo_captured_shrine = true;
@@ -68,14 +85,7 @@ public:
     bool log_jumbo_flawless_victory = true;
     bool log_jumbo_unknown = false;
 
-    bool auto_export_on_match_end = false;
-    bool auto_reset_name_on_match_end = false;
-
-    char export_folder_name[128]; // buffer for folder name input
-
-    // helper to generate default folder name
-    void GenerateDefaultFolderName();
-
+    // Available Matches display settings (used by Available Matches section in debug window)
     bool obs_show_match_ids = true;
     bool obs_show_map_id = true;
     bool obs_show_age = true;
@@ -89,4 +99,14 @@ public:
     bool obs_show_team_unknowns = true; 
     bool obs_show_cape_colors = true;  
     bool obs_show_cape_design = true; 
+
+    // helper to generate default folder name
+    void GenerateDefaultFolderName();
+
+private:
+    CaptureStatusWindow capture_status_window;
+    LivePartyInfoWindow live_party_info_window;
+    LiveGuildInfoWindow live_guild_info_window;
+    AvailableMatchesWindow available_matches_window; 
+    StoCLogWindow stoc_log_window;                 
 };

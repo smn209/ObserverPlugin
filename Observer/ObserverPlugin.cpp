@@ -112,6 +112,11 @@ DLLAPI ToolboxPlugin* ToolboxPluginInstance()
 void ObserverPlugin::LoadSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::LoadSettings(folder);
+    PLUGIN_LOAD_BOOL(show_capture_status_window);
+    PLUGIN_LOAD_BOOL(show_live_party_info_window);
+    PLUGIN_LOAD_BOOL(show_live_guild_info_window);
+    PLUGIN_LOAD_BOOL(show_available_matches_window);
+    PLUGIN_LOAD_BOOL(show_stoc_log_window);
     PLUGIN_LOAD_BOOL(stoc_status);
     PLUGIN_LOAD_BOOL(log_skill_activations);
     PLUGIN_LOAD_BOOL(log_skill_finishes);
@@ -159,6 +164,11 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::SaveSettings(folder);
+    PLUGIN_SAVE_BOOL(show_capture_status_window);
+    PLUGIN_SAVE_BOOL(show_live_party_info_window);
+    PLUGIN_SAVE_BOOL(show_live_guild_info_window);
+    PLUGIN_SAVE_BOOL(show_available_matches_window);
+    PLUGIN_SAVE_BOOL(show_stoc_log_window);
     PLUGIN_SAVE_BOOL(stoc_status);
     PLUGIN_SAVE_BOOL(log_skill_activations);
     PLUGIN_SAVE_BOOL(log_skill_finishes);
@@ -268,63 +278,68 @@ void ObserverPlugin::Draw(
     
     // draw the observer window content
     if (ImGui::Begin(Name(), is_visible_ptr, GetWinFlags())) {
-        // display observer status based on match handler flag
-        bool is_observing = match_handler && match_handler->IsObserving();
         
+        // --- Observer Status --- 
+        ImGui::Separator();
+        bool is_observing = match_handler && match_handler->IsObserving();
         if (is_observing) {
+            float windowWidth = ImGui::GetWindowSize().x;
+            float textWidth = ImGui::CalcTextSize("OBSERVER MODE ACTIVE").x;
+            ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "OBSERVER MODE ACTIVE");
         } else {
+            float windowWidth = ImGui::GetWindowSize().x;
+            float textWidth = ImGui::CalcTextSize("NOT OBSERVING").x;
+            ImGui::SetCursorPosX((windowWidth - textWidth) * 0.5f);
             ImGui::TextDisabled("NOT OBSERVING");
         }
-        
         ImGui::Separator();
+        ImGui::Spacing();
 
+        // --- Export Section --- 
         if (ImGui::TreeNodeEx("Export Match", ImGuiTreeNodeFlags_DefaultOpen)) {
             ImGui::Indent();
-
-            if (ImGui::Button("Export")) {
+            ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.6f); 
+            ImGui::InputText("##MatchNameInput", export_folder_name, sizeof(export_folder_name));
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Sets the name for the subfolder within 'captures/' where logs will be saved.\nLogs are saved under captures/<Match Name>/");
+            }
+            ImGui::PopItemWidth();
+            ImGui::SameLine();
+            if (ImGui::Button("Generate")) { 
+                GenerateDefaultFolderName();
+            }
+            if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("Generates a default Match Name based on the current date and time.");
+            }
+            ImGui::SameLine();
+             if (ImGui::Button("Export")) {
                 if (strlen(export_folder_name) > 0) {
-                    // convert char folder name to wchar_t
-                    wchar_t wfoldername[sizeof(export_folder_name)]; // use stack buffer of same size
+                    wchar_t wfoldername[sizeof(export_folder_name)];
                     size_t converted = 0;
                     errno_t err = mbstowcs_s(&converted, wfoldername, sizeof(export_folder_name), export_folder_name, _TRUNCATE);
-
                     if (err == 0) {
                         if (match_handler) {
                            match_handler->ExportLogsToFolder(wfoldername);
                         } else {
-                            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error: Match handler not available for export.");
+                            GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error: Match handler not available.");
                         }
                     } else {
-                         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name for export.");
+                         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Error converting folder name.");
                     }
                 } else {
                      GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Please enter a Match Name for export.");
                 }
             }
-            if (ImGui::IsItemHovered()) {
+             if (ImGui::IsItemHovered()) {
                 ImGui::SetTooltip("Exports all captured StoC events and Agent Loop snapshots for the current match to the specified 'captures/<Match Name>/' folder.");
             }
-            
-            // export folder name input 
-            ImGui::InputText("Match Name", export_folder_name, sizeof(export_folder_name));
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Sets the name for the subfolder within 'captures/' where logs will be saved.");
-            }
 
-            ImGui::SameLine();
-            // generate default folder name button
-            if (ImGui::Button("Generate##FolderName")) { 
-                GenerateDefaultFolderName(); // reset to default time-based name
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Generates a default Match Name based on the current date and time.");
-            }
-
-            // add Checkboxes for auto actions 
+            ImGui::Spacing();
+            // Auto actions
             ImGui::Checkbox("Auto Export on Match End", &auto_export_on_match_end);
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("If checked, automatically exports logs when observer mode ends.");
+             if (ImGui::IsItemHovered()) {
+                ImGui::SetTooltip("If checked, automatically exports logs when observer mode ends using the current Match Name.");
             }
             ImGui::Checkbox("Auto Reset Match Name on Match End", &auto_reset_name_on_match_end);
             if (ImGui::IsItemHovered()) {
@@ -334,395 +349,44 @@ void ObserverPlugin::Draw(
             ImGui::Unindent();
             ImGui::TreePop(); 
         }
-
-        // note about data persistence
         ImGui::Separator();
+        ImGui::Spacing();
+
+        // --- Debug Windows Toggles --- 
+        if (ImGui::TreeNode("Debug Windows")) {
+            ImGui::Columns(2, "DebugWinToggles", false);
+            ImGui::Checkbox("Capture Status", &show_capture_status_window);
+            ImGui::Checkbox("Live Party Info", &show_live_party_info_window);
+            ImGui::Checkbox("Live Guild Info", &show_live_guild_info_window);
+            ImGui::NextColumn();
+            ImGui::Checkbox("Available Matches", &show_available_matches_window);
+            ImGui::Checkbox("StoC Log Options", &show_stoc_log_window);
+            ImGui::Columns(1);
+            ImGui::TreePop();
+        }
+        ImGui::Separator();
+        ImGui::Spacing();
+
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); 
         ImGui::TextWrapped("Note: Captured match data (StoC events & Agent states) remains in memory after observer mode ends. You can still export the previous match using the 'Export' button above. Data will be cleared automatically when a new observer session begins.");
         ImGui::PopStyleColor();
-        ImGui::Separator();
-
-        if (ImGui::TreeNodeEx("Capture Status", ImGuiTreeNodeFlags_DefaultOpen)) 
-        {
-            ImGui::Indent();
-
-            // StoC Events Capture Status
-            bool stoc_capturing = match_handler && match_handler->IsObserving();
-            ImGui::Text("StoC Events Capture:"); ImGui::SameLine();
-            if (stoc_capturing) {
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Active");
-            } else {
-                ImGui::TextDisabled("Inactive");
-            }
-             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Indicates if StoC events are being captured internally.\n(Triggered by entering observer mode)");
-            }
-
-            // agents states capture status
-            bool loop_running = loop_handler && loop_handler->IsRunning();
-            ImGui::Text("Agents States Capture:"); ImGui::SameLine();
-            if (loop_running) {
-                ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Running");
-            } else {
-                ImGui::TextDisabled("Stopped");
-            }
-            if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("Indicates if the Agents Loop thread is currently capturing agents states snapshots.\n(Triggered by entering observer mode)");
-            }
-
-            ImGui::Unindent();
-            ImGui::TreePop(); 
-        }
         
-        if (ImGui::TreeNodeEx("Live Party Info", ImGuiTreeNodeFlags_DefaultOpen)) 
-        {
-            ImGui::Indent();
-            if (match_handler) {
-                std::lock_guard<std::mutex> lock(match_handler->GetMatchInfo().agents_info_mutex);
-                const auto& agents_info = match_handler->GetMatchInfo().agents_info;
-
-                // create a vector of pointers/references to sort *without* copying AgentInfo
-                std::vector<const AgentInfo*> agent_list;
-                agent_list.reserve(agents_info.size());
-                for(const auto& pair : agents_info) {
-                    agent_list.push_back(&pair.second);
-                }
-                // mutex can be released earlier if sorting is slow, but keeping it for simplicity here.
-                // if performance becomes an issue, copy relevant sort keys + agent_id, sort that, then use agent_id to get info.
-
-                // sort the vector of pointers
-                std::sort(agent_list.begin(), agent_list.end(), [](const AgentInfo* a, const AgentInfo* b) {
-                    if (a->party_id != b->party_id) return a->party_id < b->party_id;
-                    if (a->type != b->type) return static_cast<int>(a->type) < static_cast<int>(b->type);
-                    return a->agent_id < b->agent_id;
-                });
-
-                if (agent_list.empty()) {
-                    ImGui::TextDisabled("No party data captured yet.");
-                } else {
-                    // helper to convert AgentType enum to string
-                    auto AgentTypeToString = [](AgentType type) -> const char* {
-                        switch (type) {
-                            case AgentType::PLAYER: return "Player";
-                            case AgentType::HERO: return "Hero";
-                            case AgentType::HENCHMAN: return "Henchman";
-                            case AgentType::OTHER: return "Other";
-                            default: return "Unknown";
-                        }
-                    };
-
-                    uint32_t current_party_id = (uint32_t)-1; 
-                    AgentType current_type = (AgentType)-1;
-                    bool party_node_open = false;
-
-                    for (const auto* agent_ptr : agent_list) {
-                        const AgentInfo& agent = *agent_ptr; 
-
-                        // start new party node if party ID changes
-                        if (agent.party_id != current_party_id) {
-                            if (party_node_open) {
-                                ImGui::Unindent(); // unindent previous type section
-                                ImGui::TreePop(); // pop previous party node
-                            }
-                            current_party_id = agent.party_id;
-                            party_node_open = ImGui::TreeNode((void*)(intptr_t)current_party_id, "Party %u", current_party_id);
-                            current_type = (AgentType)-1; 
-                        }
-
-                        if (party_node_open) {
-                            // print type header if type changes within the current party
-                            if (agent.type != current_type) {
-                                if (current_type != (AgentType)-1) {
-                                    ImGui::Unindent(); // unindent previous type section
-                                }
-                                current_type = agent.type;
-                                // count agents of this type in this party (can be pre-calculated if needed)
-                                size_t count = 0;
-                                for(const auto* other_agent_ptr : agent_list) {
-                                    if (other_agent_ptr->party_id == current_party_id && other_agent_ptr->type == current_type) {
-                                        count++;
-                                    }
-                                }
-                                ImGui::Text("  %ss (%zu):", AgentTypeToString(current_type), count);
-                                ImGui::Indent();
-                            }
-
-                            // display current agent info using stringstream
-                            std::stringstream ss_display;
-                            ss_display << agent.agent_id
-                                       << " (L" << agent.level
-                                       << " T" << agent.team_id << ")"
-                                       << " (G" << agent.guild_id << ")"
-                                       << " (" << agent.primary_profession
-                                       << "/" << agent.secondary_profession << ")";
-                            if (agent.type == AgentType::PLAYER) {
-                                ss_display << " [Player#: " << agent.player_number << "]";
-                            }
-                            // display agent id if name is empty, otherwise the encoded name
-                            if (!agent.encoded_name.empty()) {
-                                // filter wstring to keep only printable ASCII for display
-                                std::string narrow_name_display;
-                                narrow_name_display.reserve(agent.encoded_name.length()); // pre-allocate roughly
-                                for (wchar_t wc : agent.encoded_name) {
-                                    if (wc >= 32 && wc <= 126) {
-                                        narrow_name_display += static_cast<char>(wc);
-                                    }
-                                }
-                                ss_display << " Name: " << narrow_name_display;
-                            }
-
-                            // add used skills if any
-                            if (!agent.used_skill_ids.empty()) {
-                                ss_display << " Skills: [";
-                                bool first_skill = true;
-                                for (uint32_t skill_id : agent.used_skill_ids) {
-                                    if (!first_skill) {
-                                        ss_display << ", ";
-                                    }
-                                    ss_display << skill_id;
-                                    first_skill = false;
-                                }
-                                ss_display << "]";
-                            }
-
-                            ImGui::TextUnformatted(ss_display.str().c_str());
-                        }
-                    }
-
-                    // clean up the last opened node/indent if any agents were processed
-                    if (party_node_open) {
-                        ImGui::Unindent(); // unindent last type section
-                        ImGui::TreePop(); // pop last party node
-                    }
-                }
-            } else {
-                ImGui::TextDisabled("Match handler not available.");
-            }
-            ImGui::Unindent();
-            ImGui::TreePop(); 
-        }
-
-        if (ImGui::TreeNodeEx("Live Guild Info", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Indent();
-            if (match_handler) {
-                std::map<uint16_t, GuildInfo> guilds_info = match_handler->GetMatchInfo().GetGuildsInfoCopy();
-                if (guilds_info.empty()) {
-                    ImGui::TextDisabled("No guild data captured yet.");
-                } else {
-                    for (const auto& [guild_id, guild_info] : guilds_info) {
-                        std::string narrow_name_display;
-                        narrow_name_display.reserve(guild_info.name.length());
-                        for (wchar_t wc : guild_info.name) {
-                            if (wc >= 32 && wc <= 126) narrow_name_display += static_cast<char>(wc);
-                        }
-
-                        std::string narrow_tag_display;
-                        narrow_tag_display.reserve(guild_info.tag.length());
-                        for (wchar_t wc : guild_info.tag) {
-                            if (wc >= 32 && wc <= 126) narrow_tag_display += static_cast<char>(wc);
-                        }
-
-                        ImGui::Text("ID: %u, Name: %s, Tag: [%s]", 
-                                    guild_info.guild_id, 
-                                    narrow_name_display.c_str(), 
-                                    narrow_tag_display.c_str());
-
-                        ImGui::Text("  Rank: %u, Rating: %u, Features: %u", 
-                                    guild_info.rank, guild_info.rating, guild_info.features);
-                        ImGui::Text("  Faction: %s (%u pts), Qualifier Pts: %u",
-                                    (guild_info.faction == 0 ? "Kurzick" : (guild_info.faction == 1 ? "Luxon" : "Unknown")), 
-                                    guild_info.faction_points, guild_info.qualifier_points);
-                        ImGui::Text("  Cape: BG(0x%X), Detail(0x%X), Emblem(0x%X)", 
-                                    guild_info.cape.cape_bg_color, guild_info.cape.cape_detail_color, guild_info.cape.cape_emblem_color);
-                        ImGui::Text("        Shape(%u), Detail(%u), Emblem(%u), Trim(%u)",
-                                    guild_info.cape.cape_shape, guild_info.cape.cape_detail, guild_info.cape.cape_emblem, guild_info.cape.cape_trim);
-                    }
-                }
-            } else {
-                 ImGui::TextDisabled("Match handler not available.");
-            }
-             ImGui::Unindent();
-            ImGui::TreePop();
-        }
-
-        if (ImGui::TreeNodeEx("Available Observer Matches", ImGuiTreeNodeFlags_DefaultOpen)) {
-            ImGui::Indent();
-
-            if (ImGui::TreeNode("Display Options")) {
-                ImGui::Columns(2, "ObsDisplayOptions", false);
-                ImGui::Checkbox("Match IDs##Obs", &obs_show_match_ids);
-                ImGui::Checkbox("Map ID##Obs", &obs_show_map_id);
-                ImGui::Checkbox("Age##Obs", &obs_show_age);
-                ImGui::Checkbox("Type##Obs", &obs_show_type);
-                ImGui::Checkbox("Count##Obs", &obs_show_count);
-                ImGui::Checkbox("Match Unknowns##Obs", &obs_show_match_unknowns);
-                ImGui::Checkbox("Team 1 Name Dup##Obs", &obs_show_team1_name_dup);
-                ImGui::Checkbox("H007C Array##Obs", &obs_show_h007c_array);
-                ImGui::NextColumn();
-                ImGui::Checkbox("Team ID##Obs", &obs_show_team_id);
-                ImGui::Checkbox("Team Name##Obs", &obs_show_team_name);
-                ImGui::Checkbox("Team Unknowns##Obs", &obs_show_team_unknowns);
-                ImGui::Checkbox("Cape Colors##Obs", &obs_show_cape_colors);
-                ImGui::Checkbox("Cape Design##Obs", &obs_show_cape_design);
-                ImGui::Columns(1);
-                ImGui::TreePop();
-                ImGui::Separator();
-            }
-
-
-            if (GW::Map::GetInstanceType() == GW::Constants::InstanceType::Outpost) {
-                GW::CharContext* cc = GW::GetCharContext();
-                GW::Array<ObserverData::MatchDetails*>* observer_matchs_ptr = nullptr;
-                if (cc) {
-                    uintptr_t char_context_base = reinterpret_cast<uintptr_t>(cc);
-                    uintptr_t observer_matchs_address = char_context_base + 0x24C;
-                    observer_matchs_ptr = reinterpret_cast<GW::Array<ObserverData::MatchDetails*>*>(observer_matchs_address);
-                }
-
-                if (!observer_matchs_ptr || !observer_matchs_ptr->valid()) {
-                    ImGui::TextDisabled("Character context or observer match data not available.");
-                } else {
-                    std::map<uint32_t, std::vector<ObserverData::MatchDetails*>> type_map;
-                    for (ObserverData::MatchDetails* om : *observer_matchs_ptr) {
-                        if (!om) continue;
-                        type_map[om->type].push_back(om);
-                    }
-
-                    if (type_map.empty()) {
-                         ImGui::TextDisabled("No observer matches available.");
-                    }
-
-                    for (auto &m : type_map) {
-                        std::string type_name = ObserverData::GetMatchTypeName(m.first);
-                        if (ImGui::TreeNode(type_name.c_str())) {
-                            for (ObserverData::MatchDetails* o : m.second) {
-                                if (!o) continue;
-
-                                if (obs_show_match_ids) {
-                                    ImGui::Text("Match ID: %u (Dup: %u)", o->match_id, o->match_id_dup); ImGui::SameLine();
-                                }
-                                if (obs_show_map_id) {
-                                     ImGui::Text("Map ID: %u", o->map_id); ImGui::SameLine();
-                                }
-                                if (obs_show_type) {
-                                    ImGui::Text("Type: %u (%s)", o->type, ObserverData::GetMatchTypeName(o->type).c_str()); ImGui::SameLine();
-                                }
-                                ImGui::NewLine();
-
-                                if (obs_show_age) {
-                                    ImGui::Text("  Age: %ums", o->age); ImGui::SameLine();
-                                }
-                                if (obs_show_count) {
-                                     ImGui::Text("Count: %u", o->count); ImGui::SameLine();
-                                }
-                                if (obs_show_match_unknowns) {
-                                     ImGui::Text("Unknowns: h0014=0x%X, h0018=0x%X", o->h0014, o->h0018); ImGui::SameLine();
-                                }
-                                ImGui::NewLine();
-
-                                if (obs_show_team1_name_dup) {
-                                    std::string team1_dup_str = ObserverData::SafeWcharToString(o->team1_name_dup);
-                                    ImGui::Text("  Team1 Name Dup: %s", team1_dup_str.c_str());
-                                }
-
-                                ObserverData::DrawObserverTeam(0, &o->team[0], obs_show_team_id, obs_show_team_name, obs_show_team_unknowns, obs_show_cape_colors, obs_show_cape_design);
-                                ObserverData::DrawObserverTeam(1, &o->team[1], obs_show_team_id, obs_show_team_name, obs_show_team_unknowns, obs_show_cape_colors, obs_show_cape_design);
-
-                                if (obs_show_h007c_array) {
-                                    ImGui::TextUnformatted("  h007C Array:");
-                                    ImGui::Indent();
-                                    std::stringstream ss_h007c;
-                                    for (int i = 0; i < 10; ++i) {
-                                        ss_h007c << "[ " << i << "]=0x" << std::hex << o->h007C[i] << (i == 4 ? "\n    " : " ");
-                                    }
-                                    ImGui::TextUnformatted(ss_h007c.str().c_str());
-                                    ImGui::Unindent();
-                                }
-
-                                ImGui::Separator();
-                            }
-                            ImGui::TreePop();
-                        }
-                    }
-                }
-            } else {
-                ImGui::TextDisabled("Only available in an outpost instance.");
-            }
-
-            ImGui::Unindent();
-            ImGui::TreePop();
-        }
-        ImGui::Separator();
-
-        ImGui::Checkbox("Enable StoC logging chat", &stoc_status); 
-        ImGui::SameLine(); 
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered()) {
-            ImGui::SetTooltip("Master toggle for displaying StoC log messages in the game chat.\nAll events are still recorded internally for export regardless of this setting.");
-        }
-        
-        if (stoc_status)
-        {
-            ImGui::Indent();
-
-            auto AddLogCheckbox = [](const char* label, bool* v, const char* tooltip_text) {
-                ImGui::Checkbox(label, v);
-                ImGui::SameLine();
-                ImGui::TextDisabled("(?)");
-                if (ImGui::IsItemHovered()) {
-                    ImGui::SetTooltip(tooltip_text);
-                }
-            };
-
-            if (ImGui::TreeNode("Skill Events")) {
-                AddLogCheckbox("Activations##Skill", &log_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
-                AddLogCheckbox("Finishes##Skill", &log_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillFinished\nMarker: [SKL]\nFile: skill_events.txt");
-                AddLogCheckbox("Stops##Skill", &log_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleSkillStopped\nMarker: [SKL]\nFile: skill_events.txt");
-                AddLogCheckbox("Instant Activations##Skill", &log_instant_skills, "Chat Log Toggle\nHandler: ObserverStoC::handleInstantSkillActivated\nMarker: [SKL]\nFile: skill_events.txt");
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Attack Skill Events")) {
-                 AddLogCheckbox("Activations##AttackSkill", &log_attack_skill_activations, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillActivated\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                 AddLogCheckbox("Finishes##AttackSkill", &log_attack_skill_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillFinished\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                 AddLogCheckbox("Stops##AttackSkill", &log_attack_skill_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackSkillStopped\nMarker: [ASK]\nFile: attack_skill_events.txt");
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Basic Attack Events")) {
-                AddLogCheckbox("Starts##BasicAttack", &log_basic_attack_starts, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStarted\nMarker: [ATK]\nFile: basic_attack_events.txt");
-                AddLogCheckbox("Finishes##BasicAttack", &log_basic_attack_finishes, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackFinished\nMarker: [ATK]\nFile: basic_attack_events.txt");
-                AddLogCheckbox("Stops##BasicAttack", &log_basic_attack_stops, "Chat Log Toggle\nHandler: ObserverStoC::handleAttackStopped\nMarker: [ATK]\nFile: basic_attack_events.txt");
-               ImGui::TreePop();
-            }
-            
-            if (ImGui::TreeNode("Combat Events")) {
-                AddLogCheckbox("Damage", &log_damage, "Chat Log Toggle\nHandler: ObserverStoC::handleDamage\nMarker: [CMB]\nFile: combat_events.txt");
-                AddLogCheckbox("Interrupts", &log_interrupts, "Chat Log Toggle\nHandler: ObserverStoC::handleInterrupted\nMarker: [CMB]\nFile: combat_events.txt");
-                AddLogCheckbox("Knockdowns", &log_knockdowns, "Chat Log Toggle\nHandler: ObserverStoC::handleKnockdown\nMarker: [CMB]\nFile: combat_events.txt");
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Agent Events")) {
-                AddLogCheckbox("Movement", &log_movement, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentMovement\nMarker: [AGT]\nFile: agent_events.txt");
-                ImGui::TreePop();
-            }
-
-            if (ImGui::TreeNode("Jumbo Messages")) {
-                AddLogCheckbox("Base Under Attack##Jumbo", &log_jumbo_base_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 0\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Guild Lord Under Attack##Jumbo", &log_jumbo_guild_lord_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 1\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Captured Shrine##Jumbo", &log_jumbo_captured_shrine, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 3\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Captured Tower##Jumbo", &log_jumbo_captured_tower, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 5\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Party Defeated##Jumbo", &log_jumbo_party_defeated, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 6\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Morale Boost##Jumbo", &log_jumbo_morale_boost, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 9\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Victory##Jumbo", &log_jumbo_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 16\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Flawless Victory##Jumbo", &log_jumbo_flawless_victory, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 17\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                AddLogCheckbox("Unknown Types##Jumbo", &log_jumbo_unknown, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nUnknown Types\nMarker: [JMB]\nFile: jumbo_messages.txt");
-                ImGui::TreePop();
-            }
-
-            ImGui::Unindent();
-        }
     }
     ImGui::End();
+
+    if (show_capture_status_window) {
+        capture_status_window.Draw(*this, show_capture_status_window);
+    }
+    if (show_live_party_info_window) {
+        live_party_info_window.Draw(*this, show_live_party_info_window);
+    }
+    if (show_live_guild_info_window) {
+        live_guild_info_window.Draw(*this, show_live_guild_info_window);
+    }
+    if (show_available_matches_window) {
+        available_matches_window.Draw(*this, show_available_matches_window);
+    }
+    if (show_stoc_log_window) {
+        stoc_log_window.Draw(*this, show_stoc_log_window);
+    }
 }

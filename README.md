@@ -42,6 +42,16 @@ target_sources(Observer PRIVATE
     "plugins/Observer/ObserverPlugin.h"
     "plugins/Observer/ObserverMatchData.h"
     "plugins/Observer/ObserverMatchData.cpp"
+    "plugins/Observer/Debug/StoCLogWindow.h"
+    "plugins/Observer/Debug/StoCLogWindow.cpp"
+    "plugins/Observer/Debug/LivePartyInfoWindow.h"
+    "plugins/Observer/Debug/LivePartyInfoWindow.cpp"
+    "plugins/Observer/Debug/LiveGuildInfoWindow.h"
+    "plugins/Observer/Debug/LiveGuildInfoWindow.cpp"
+    "plugins/Observer/Debug/AvailableMatchesWindow.h"
+    "plugins/Observer/Debug/AvailableMatchesWindow.cpp"
+    "plugins/Observer/Debug/CaptureStatusWindow.h"
+    "plugins/Observer/Debug/CaptureStatusWindow.cpp"
     "plugins/Observer/dllmain.cpp"
 )
 target_include_directories(Observer PRIVATE
