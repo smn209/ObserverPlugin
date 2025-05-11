@@ -9,13 +9,7 @@ The Observer Plugin is a utility for [Guild Wars](https://www.guildwars.com/), d
 *Special thanks to the GWToolbox++ team for creating the plugin system that makes this possible!*
 
 > [!CAUTION]
-> **Dependency Requirement:** The Match Compositions window feature requires the `Resources::GetSkillImage(skill_id)` function from GWToolbox++. This function is only exported in GWToolbox++ versions 7.3 and later.
->
-> Please ensure you are using GWToolbox++ v7.3+ or a custom build with this function exported. See [GWToolbox++ PR #1407](https://github.com/gwdevhub/GWToolboxpp/pull/1407) for technical details.
->
-> If you want to use it now you can use the GWToolboxpp builded on ObserverPlugin release 0.7 which is Master 7.3 with edited pragma line from PR [GWToolbox++ PR #1407](https://github.com/gwdevhub/GWToolboxpp/pull/1407). You can also use it if you build your own Toolbox Build on current `dev` branch.
-
- 
+> Project is developed on `dev` branch of GWToolbox++, we are uploading toolbox DLL and Observer dll to assume a correct version, but you can use toolbox directly from their git release or either build yourself toolbox.
 
 ## Installation & Usage
 
