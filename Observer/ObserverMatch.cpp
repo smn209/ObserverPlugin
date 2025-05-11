@@ -253,8 +253,9 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                 auto AgentTypeToJSONString = [](AgentType type) -> const char* {
                     switch (type) {
                         case AgentType::PLAYER: return "PLAYER";
-                        case AgentType::HERO: return "HERO";
-                        case AgentType::HENCHMAN: return "HENCHMAN";
+                        case AgentType::HERO: return "PARTY_COMPLETE";
+                        case AgentType::HENCHMAN: return "PARTY_COMPLETE";
+                        case AgentType::PARTY_COMPLETE: return "PARTY_COMPLETE";
                         case AgentType::OTHER: return "OTHER";
                         default: return "UNKNOWN";
                     }

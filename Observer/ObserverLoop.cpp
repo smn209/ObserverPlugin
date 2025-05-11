@@ -278,6 +278,9 @@ void ObserverLoop::UpdatePartiesInformations() {
 
     MatchInfo& match_info = match_handler_->GetMatchInfo(); // get reference to match info
 
+    // track all player, hero, and henchman agent IDs so we can categorize the rest as OTHER
+    std::set<uint32_t> known_party_agent_ids;
+
     for (const GW::PartyInfo* party_info : party_ctx->parties) {
         if (!party_info) continue;
 
@@ -309,6 +312,7 @@ void ObserverLoop::UpdatePartiesInformations() {
 
                     match_info.UpdateAgentInfo(info);
                     MaybeUpdateGuildInfo(info.guild_id, match_info);
+                    known_party_agent_ids.insert(player.agent_id);
                 }
             }
         }
@@ -338,6 +342,7 @@ void ObserverLoop::UpdatePartiesInformations() {
                 
                 match_info.UpdateAgentInfo(info);
                 MaybeUpdateGuildInfo(info.guild_id, match_info);
+                known_party_agent_ids.insert(h.agent_id);
             }
         }
 
@@ -366,34 +371,92 @@ void ObserverLoop::UpdatePartiesInformations() {
 
                 match_info.UpdateAgentInfo(info);
                 MaybeUpdateGuildInfo(info.guild_id, match_info);
+                known_party_agent_ids.insert(h.agent_id);
             }
         }
 
-        // get others
-        if (party_info->others.valid()) {
-            for (GW::AgentID agent_id : party_info->others) {
-                if (agent_id != 0) {
-                    AgentInfo info;
-                    GW::Agent* agent = GW::Agents::GetAgentByID(agent_id);
-
-                    info.agent_id = agent_id;
-                    info.party_id = current_party_id;
-                    info.type = AgentType::OTHER;
-                    info.player_number = 0; 
-
-                    if (agent && agent->GetIsLivingType()) {
-                        PopulateLivingAgentDetails(static_cast<GW::AgentLiving*>(agent), info);
-                    } else {
-                        info.primary_profession = 0;
-                        info.secondary_profession = 0;
-                        info.level = 0;
-                        info.team_id = 0;
-                        info.guild_id = 0;
-                        info.encoded_name = L""; 
+        // get other party-associated NPCs (knights, archers, flags, etc.)
+        // first, scan the agent array to find all NPCs that have the same team_id as any player in this party
+        GW::AgentArray* agents = GW::Agents::GetAgentArray();
+        if (agents && agents->valid()) {
+            // determine the team_id for this party by getting it from a player in the party
+            uint8_t party_team_id = 0;
+            bool found_team_id = false;
+            
+            // try to find team_id from party's players
+            if (party_info->players.valid()) {
+                for (const GW::PlayerPartyMember& p : party_info->players) {
+                    const GW::Player& player = players->at(p.login_number);
+                    if (player.agent_id != 0) {
+                        GW::Agent* agent = GW::Agents::GetAgentByID(player.agent_id);
+                        if (agent && agent->GetIsLivingType()) {
+                            GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
+                            party_team_id = living->team_id;
+                            found_team_id = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // if we couldn't find team_id from players, try from heroes or henchmen
+            if (!found_team_id && party_info->heroes.valid()) {
+                for (const GW::HeroPartyMember& h : party_info->heroes) {
+                    if (h.agent_id != 0) {
+                        GW::Agent* agent = GW::Agents::GetAgentByID(h.agent_id);
+                        if (agent && agent->GetIsLivingType()) {
+                            GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
+                            party_team_id = living->team_id;
+                            found_team_id = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (!found_team_id && party_info->henchmen.valid()) {
+                for (const GW::HenchmanPartyMember& h : party_info->henchmen) {
+                    if (h.agent_id != 0) {
+                        GW::Agent* agent = GW::Agents::GetAgentByID(h.agent_id);
+                        if (agent && agent->GetIsLivingType()) {
+                            GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
+                            party_team_id = living->team_id;
+                            found_team_id = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // scan for NPCs that belong to this team
+            if (found_team_id) {
+                for (size_t i = 0; i < agents->size(); i++) {
+                    GW::Agent* agent = (*agents)[i];
+                    if (!agent) continue;
+                    
+                    // skip if already categorized as player/hero/henchman
+                    if (known_party_agent_ids.find(agent->agent_id) != known_party_agent_ids.end()) {
+                        continue;
                     }
 
-                    match_info.UpdateAgentInfo(info);
-                    MaybeUpdateGuildInfo(info.guild_id, match_info);
+                    // skip if not a living agent
+                    if (!agent->GetIsLivingType()) {
+                        continue;
+                    }
+
+                    GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
+                    
+                    // if the NPC belongs to this party's team
+                    if (living->team_id == party_team_id) {
+                        AgentInfo info;
+                        info.agent_id = agent->agent_id;
+                        info.party_id = current_party_id;
+                        info.type = AgentType::OTHER;
+                        info.player_number = 0;
+                        
+                        PopulateLivingAgentDetails(living, info);
+                        match_info.UpdateAgentInfo(info);
+                    }
                 }
             }
         }

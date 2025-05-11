@@ -21,7 +21,8 @@ enum class AgentType {
     PLAYER,
     HERO,
     HENCHMAN,
-    OTHER // Pets, Minions, etc.
+    PARTY_COMPLETE, // for party members that are not players (means heroes, henchmen, etc.)
+    OTHER // NPCs (Guild Lord, Bodyguard, Flag?, etc.)
 };
 
 struct AgentInfo {
