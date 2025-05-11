@@ -7,6 +7,7 @@
 
 #include <GWCA/Managers/StoCMgr.h>     
 #include <GWCA/Managers/ChatMgr.h>    
+#include <GWCA/Managers/UIMgr.h>    
 #include <GWCA/Packets/StoC.h>      
 #include <GWCA/Context/GameContext.h>
 #include <GWCA/Context/PartyContext.h>
@@ -23,6 +24,7 @@
 #include <Utils/TextUtils.h>
 
 std::string EscapeWideStringForJSON(const std::wstring& wstr);
+std::string DecodeAgentNameForJSON(const std::wstring& encoded_name);
 
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
@@ -325,9 +327,9 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                              outfile << ", ";
                         }
 
-                        // convert and escape name specifically for JSON output using the helper
-                        std::string escaped_name_json = EscapeWideStringForJSON(agent.encoded_name);
-
+                        // decode and properly format the agent name for JSON
+                        std::string decoded_name_json = DecodeAgentNameForJSON(agent.encoded_name);
+                        
                         outfile << "{\"id\": " << agent.agent_id
                                 << ", \"primary\": " << agent.primary_profession
                                 << ", \"secondary\": " << agent.secondary_profession
@@ -335,7 +337,7 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"team_id\": " << agent.team_id
                                 << ", \"player_number\": " << agent.player_number
                                 << ", \"guild_id\": " << agent.guild_id
-                                << ", \"encoded_name\": " << escaped_name_json
+                                << ", \"encoded_name\": " << decoded_name_json
                                 << ", \"used_skills\": [";
                         // add used skills to the array
                         bool first_skill = true;
@@ -586,4 +588,24 @@ std::string EscapeWideStringForJSON(const std::wstring& wstr) {
     
     // return the properly quoted JSON string
     return "\"" + utf8_str + "\"";
+}
+
+std::string DecodeAgentNameForJSON(const std::wstring& encoded_name) {
+    if (encoded_name.empty()) return "\"\"";
+
+    // buffer for decoded name
+    static std::vector<wchar_t> decoded_buffer(256, 0);
+    
+    // decode the name using GW's API
+    GW::UI::AsyncDecodeStr(encoded_name.c_str(), decoded_buffer.data(), decoded_buffer.size());
+    
+    // wait a bit for decoding to complete if necessary
+    if (wcscmp(decoded_buffer.data(), L"<Decoding...>") == 0) {
+        // just use the raw encoded name if decoding doesn't complete in time
+        return EscapeWideStringForJSON(encoded_name);
+    }
+    
+    // return the decoded name properly escaped for JSON - convert buffer to wstring first
+    std::wstring decoded_name(decoded_buffer.data());
+    return EscapeWideStringForJSON(decoded_name);
 }
