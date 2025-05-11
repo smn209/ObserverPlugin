@@ -2,6 +2,7 @@
 #include "../ObserverPlugin.h"
 #include "../ObserverMatch.h"
 #include "../ObserverMatchData.h"
+#include "../ResourcesHelper.h"
 
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
@@ -13,6 +14,7 @@
 #include <map>
 #include <algorithm>
 #include <stringapiset.h>
+#include <GWCA/Constants/Skills.h>
 
 namespace {
     constexpr float SKILL_ICON_SIZE = 32.0f;
@@ -117,7 +119,7 @@ void MatchCompositionsWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible)
 
                         if (skill_exists) {
                             SkillInfo& skill_info_ref = GetSkillInfo(skill_id);
-                            IDirect3DTexture9** tex_ptr_ptr = Resources::GetSkillImage(static_cast<GW::Constants::SkillID>(skill_id));
+                            IDirect3DTexture9** tex_ptr_ptr = GetSkillImage(static_cast<GW::Constants::SkillID>(skill_id));
 
                             if (tex_ptr_ptr && *tex_ptr_ptr) {
                                 ImVec4 border_col = (skill_info_ref.info_fetched && skill_info_ref.is_elite) ? ELITE_BORDER_COLOR : ImVec4(0,0,0,0);

@@ -118,12 +118,6 @@ ObserverPlugin::~ObserverPlugin()
     }
 }
 
-DLLAPI ToolboxPlugin* ToolboxPluginInstance()
-{
-    static ObserverPlugin instance;
-    return &instance;
-}
-
 void ObserverPlugin::LoadSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::LoadSettings(folder);
