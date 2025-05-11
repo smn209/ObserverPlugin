@@ -1,4 +1,5 @@
 #include "ObserverMatchData.h"
+#include "TextUtils.h"
 
 #include <string>
 #include <map>
@@ -20,6 +21,7 @@ namespace ObserverData {
 
     std::string SafeWcharToString(const wchar_t* wstr) {
         if (!wstr) return "N/A";
+        
         std::wstring ws(wstr);
         std::string narrow_str;
         narrow_str.reserve(ws.length());

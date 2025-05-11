@@ -3,6 +3,7 @@
 #include "../ObserverMatch.h"
 #include "../ObserverMatchData.h"
 #include "../ResourcesHelper.h"
+#include "../TextUtils.h"
 
 #include <GWCA/Managers/UIMgr.h>
 #include <GWCA/Managers/SkillbarMgr.h>
@@ -15,6 +16,8 @@
 #include <algorithm>
 #include <stringapiset.h>
 #include <GWCA/Constants/Skills.h>
+#include <GWCA/GameEntities/Skill.h>
+#include <GWCA/Constants/Constants.h>
 
 namespace {
     constexpr float SKILL_ICON_SIZE = 32.0f;
@@ -93,7 +96,7 @@ void MatchCompositionsWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible)
                     ImGui::Text("%s/%s", GW::Constants::GetProfessionAcronym(prof), GW::Constants::GetProfessionAcronym(sec_prof));
                     ImGui::SameLine(0.0f, 5.0f);
 
-                    const wchar_t* agent_name = DecodeAgentName(agent.encoded_name);
+                    const wchar_t* agent_name = ObserverUtils::DecodeAgentName(agent.encoded_name);
                     if (agent_name && agent_name[0] != L'\0' && wcscmp(agent_name, L"<Decoding...>") != 0) {
                         ImGui::Text("%S", agent_name);
                     } else {
@@ -326,16 +329,4 @@ const wchar_t* MatchCompositionsWindow::GetSkillTypeString(GW::Skill* skill, Ski
 
      ImGui::PopTextWrapPos();
      ImGui::EndTooltip();
- }
-
- const wchar_t* MatchCompositionsWindow::DecodeAgentName(const std::wstring& encoded_name) {
-     if (encoded_name.empty()) return L"";
-
-     if (decoded_agent_name_buffer_.empty()) {
-         decoded_agent_name_buffer_.resize(256);
-     }
-
-     GW::UI::AsyncDecodeStr(encoded_name.c_str(), decoded_agent_name_buffer_.data(), decoded_agent_name_buffer_.size());
-
-     return decoded_agent_name_buffer_.data();
  }

@@ -48,8 +48,6 @@ private:
     const wchar_t* GetSkillTypeString(GW::Skill* skill, SkillInfo& info);
     SkillInfo& GetSkillInfo(uint32_t skill_id);
     void DrawSkillTooltip(const SkillInfo& info);
-    const wchar_t* DecodeAgentName(const std::wstring& encoded_name);
 
     std::map<uint32_t, SkillInfo> skill_info_cache_;
-    std::vector<wchar_t> decoded_agent_name_buffer_;
 }; 

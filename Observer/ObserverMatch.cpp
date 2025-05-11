@@ -4,6 +4,7 @@
 #include "ObserverPlugin.h"
 #include "ObserverCapture.h" 
 #include "ObserverLoop.h"    
+#include "TextUtils.h"
 
 #include <GWCA/Managers/StoCMgr.h>     
 #include <GWCA/Managers/ChatMgr.h>    
@@ -328,7 +329,7 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                         }
 
                         // decode and properly format the agent name for JSON
-                        std::string decoded_name_json = DecodeAgentNameForJSON(agent.encoded_name);
+                        std::string decoded_name_json = ObserverUtils::DecodeAgentNameForJSON(agent.encoded_name);
                         
                         outfile << "{\"id\": " << agent.agent_id
                                 << ", \"primary\": " << agent.primary_profession
@@ -366,8 +367,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                     bool first_guild = true;
                     for (const auto& [guild_id, guild_info] : guilds_info) {
                         if (!first_guild) outfile << ",\n";
-                        std::string escaped_name = EscapeWideStringForJSON(guild_info.name);
-                        std::string escaped_tag = EscapeWideStringForJSON(guild_info.tag);
+                        std::string escaped_name = ObserverUtils::EscapeWideStringForJSON(guild_info.name);
+                        std::string escaped_tag = ObserverUtils::EscapeWideStringForJSON(guild_info.tag);
                         outfile << "    \"" << guild_id << "\": {" << std::endl
                                 << "      \"id\": " << guild_info.guild_id << "," << std::endl
                                 << "      \"name\": " << escaped_name << "," << std::endl
@@ -529,83 +530,4 @@ bool ObserverMatch::IsObserving() const {
 
 MatchInfo& ObserverMatch::GetMatchInfo() {
     return current_match_info_;
-}
-std::string EscapeWideStringForJSON(const std::wstring& wstr) {
-    // check if the string is a player name with the special pattern
-    // the observed pattern is that player names often have control characters as prefix/suffix
-    std::wstring cleaned;
-    cleaned.reserve(wstr.length());
-    
-    // only keep printable ASCII and common unicode characters
-    for (wchar_t wc : wstr) {
-        // skip control characters and the specific markers we've identified
-        if (wc == 0x0ba9 || wc == 0x0107 || wc == 0x0001) {
-            continue;
-        }
-        
-        // keep printable characters
-        if (wc >= 32) {
-            cleaned += wc;
-        }
-    }
-    
-    // escape for JSON
-    std::wstring result;
-    result.reserve(cleaned.length() * 2);  // reserve more space for potential escapes
-    
-    for (wchar_t wc : cleaned) {
-        switch (wc) {
-            case L'\\': result += L"\\\\"; break;
-            case L'"': result += L"\\\""; break;
-            case L'/': result += L"\\/"; break;
-            case L'\b': result += L"\\b"; break;
-            case L'\f': result += L"\\f"; break;
-            case L'\n': result += L"\\n"; break;
-            case L'\r': result += L"\\r"; break;
-            case L'\t': result += L"\\t"; break;
-            default:
-                if (wc <= 126) {
-                    // ASCII printable
-                    result += wc;
-                } else {
-                    // unicode - use \uXXXX format
-                    std::wostringstream woss;
-                    woss << L"\\u" << std::hex << std::setw(4) << std::setfill(L'0') << static_cast<int>(wc);
-                    result += woss.str();
-                }
-                break;
-        }
-    }
-    
-    // convert to UTF-8
-    if (result.empty()) {
-        return "\"\"";
-    }
-    
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, &result[0], (int)result.size(), NULL, 0, NULL, NULL);
-    std::string utf8_str(size_needed, 0);
-    WideCharToMultiByte(CP_UTF8, 0, &result[0], (int)result.size(), &utf8_str[0], size_needed, NULL, NULL);
-    
-    // return the properly quoted JSON string
-    return "\"" + utf8_str + "\"";
-}
-
-std::string DecodeAgentNameForJSON(const std::wstring& encoded_name) {
-    if (encoded_name.empty()) return "\"\"";
-
-    // buffer for decoded name
-    static std::vector<wchar_t> decoded_buffer(256, 0);
-    
-    // decode the name using GW's API
-    GW::UI::AsyncDecodeStr(encoded_name.c_str(), decoded_buffer.data(), decoded_buffer.size());
-    
-    // wait a bit for decoding to complete if necessary
-    if (wcscmp(decoded_buffer.data(), L"<Decoding...>") == 0) {
-        // just use the raw encoded name if decoding doesn't complete in time
-        return EscapeWideStringForJSON(encoded_name);
-    }
-    
-    // return the decoded name properly escaped for JSON - convert buffer to wstring first
-    std::wstring decoded_name(decoded_buffer.data());
-    return EscapeWideStringForJSON(decoded_name);
 }
