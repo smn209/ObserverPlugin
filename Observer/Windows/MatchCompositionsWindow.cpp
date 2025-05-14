@@ -52,26 +52,73 @@ void MatchCompositionsWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible)
         }
     }
 
+    bool can_display_teams = false;
+    if (teams.size() >= 2) {
+        int teams_with_players = 0;
+        for (const auto& [team_id, team_agents] : teams) {
+            bool has_player = false;
+            for (const auto& agent : team_agents) {
+                if (agent.type == AgentType::PLAYER) {
+                    has_player = true;
+                    break;
+                }
+            }
+            if (has_player) {
+                teams_with_players++;
+            }
+        }
+        if (teams_with_players >= 2) {
+            can_display_teams = true;
+        }
+    }
+
+    if (!can_display_teams) {
+        ImGui::SetNextWindowSize(ImVec2(300, 100), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Match Compositions Status", &is_visible)) {
+            ImGui::TextDisabled("Waiting for opponent information...");
+        }
+        ImGui::End();
+        return;
+    }
+
     uint32_t team_index = 0;
     for (auto const& [team_id, team_agents] : teams) {
         if (team_index >= 2) break;
 
         std::string team_name = "Team " + std::to_string(team_id);
         std::string team_tag = "";
+        
+        std::map<uint16_t, int> guild_counts;
         for(const auto& agent : team_agents) {
             if (agent.type == AgentType::PLAYER && agent.guild_id != 0) {
-                auto it = guilds_copy.find(agent.guild_id);
-                if (it != guilds_copy.end()) {
-                    team_name = obs_plugin.WStringToString(it->second.name);
-                    team_tag = obs_plugin.WStringToString(it->second.tag);
-                    break;
-                }
+                guild_counts[agent.guild_id]++;
+            }
+        }
+        
+        uint16_t most_common_guild_id = 0;
+        int highest_count = 0;
+        for (const auto& [guild_id, count] : guild_counts) {
+            if (count > highest_count) {
+                highest_count = count;
+                most_common_guild_id = guild_id;
+            }
+        }
+        
+        if (most_common_guild_id != 0) {
+            auto it = guilds_copy.find(most_common_guild_id);
+            if (it != guilds_copy.end()) {
+                team_name = obs_plugin.WStringToString(it->second.name);
+                team_tag = obs_plugin.WStringToString(it->second.tag);
             }
         }
 
         std::string window_title = "#" + std::to_string(team_id) + ": " + team_name;
         if (!team_tag.empty()) {
             window_title += " [" + team_tag + "]";
+        }
+        
+        if (match_info.winner_party_id != 0 && team_id == match_info.winner_party_id) {
+            window_title += " (WINNER)";
         }
 
         ImGui::PushID(team_id);
