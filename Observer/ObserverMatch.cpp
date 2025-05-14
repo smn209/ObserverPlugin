@@ -338,6 +338,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"team_id\": " << agent.team_id
                                 << ", \"player_number\": " << agent.player_number
                                 << ", \"guild_id\": " << agent.guild_id
+                                << ", \"model_id\": " << agent.model_id
+                                << ", \"gadget_id\": " << agent.gadget_id
                                 << ", \"encoded_name\": " << decoded_name_json
                                 << ", \"used_skills\": [";
                         // add used skills to the array

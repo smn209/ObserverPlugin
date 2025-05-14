@@ -163,6 +163,7 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
                 // format AgentState back into the semicolon-delimited string
                 buffer << state.x << L";" << state.y << L";" << state.z << L";"
                        << state.rotation_angle << L";" << state.weapon_id << L";"
+                       << state.model_id << L";" << state.gadget_id << L";"
                        << (state.is_alive ? L"1" : L"0") << L";"
                        << (state.is_dead ? L"1" : L"0") << L";"
                        << state.health_pct << L";"
@@ -480,6 +481,9 @@ AgentState ObserverLoop::GetAgentState(GW::Agent* agent) {
     if (agent->GetIsLivingType()) {
         GW::AgentLiving* living = static_cast<GW::AgentLiving*>(agent);
         
+        // 3D infos
+        state.model_id = living->player_number;
+        
         // health and status
         state.is_alive = !living->GetIsDead();
         state.is_dead = living->GetIsDead();
@@ -505,8 +509,11 @@ AgentState ObserverLoop::GetAgentState(GW::Agent* agent) {
         state.is_holding = (living->model_state & 0x400) != 0;
         state.is_casting = living->GetIsCasting(); 
         state.skill_id = living->skill; 
-
     } 
+    else if (agent->GetIsGadgetType()) {
+        GW::AgentGadget* gadget = static_cast<GW::AgentGadget*>(agent);
+        state.gadget_id = gadget->gadget_id;
+    }
     
     return state; 
 } 
@@ -519,6 +526,15 @@ void ObserverLoop::PopulateLivingAgentDetails(GW::AgentLiving* living, AgentInfo
     
     info.level = living->level;
     info.team_id = living->team_id;
+    info.model_id = living->player_number; // For living agents, model_id is stored in player_number
+
+    // Gadget_id is only applicable for gadget-type agents
+    if (living->GetIsGadgetType()) {
+        GW::AgentGadget* gadget = living->GetAsAgentGadget();
+        if (gadget) {
+            info.gadget_id = gadget->gadget_id;
+        }
+    }
 
     if (living->tags) { 
         info.guild_id = living->tags->guild_id;

@@ -30,6 +30,8 @@ struct AgentState {
     float rotation_angle = 0.0f;
 
     uint32_t weapon_id = 0;
+    uint32_t model_id = 0;
+    uint32_t gadget_id = 0;
 
     bool is_alive = false;
     bool is_dead = false;
@@ -57,6 +59,8 @@ struct AgentState {
         return x == other.x && y == other.y && z == other.z &&
                rotation_angle == other.rotation_angle &&
                weapon_id == other.weapon_id &&
+               model_id == other.model_id &&
+               gadget_id == other.gadget_id &&
                is_alive == other.is_alive && is_dead == other.is_dead &&
                health_pct == other.health_pct &&
                is_knocked == other.is_knocked && max_hp == other.max_hp &&

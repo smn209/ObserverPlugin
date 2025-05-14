@@ -37,6 +37,8 @@ struct AgentInfo {
     std::wstring encoded_name; 
     uint16_t guild_id = 0; 
     std::set<uint32_t> used_skill_ids; 
+    uint32_t model_id = 0;
+    uint32_t gadget_id = 0;
 };
 
 struct GuildInfo {
