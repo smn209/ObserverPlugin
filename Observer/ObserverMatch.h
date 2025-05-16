@@ -36,7 +36,7 @@ struct AgentInfo {
     uint32_t player_number = 0; 
     std::wstring encoded_name; 
     uint16_t guild_id = 0; 
-    std::set<uint32_t> used_skill_ids; 
+    std::vector<uint32_t> used_skill_ids;
     uint32_t model_id = 0;
     uint32_t gadget_id = 0;
 };
@@ -76,6 +76,7 @@ struct MatchInfo {
     void UpdateAgentInfo(const AgentInfo& info);
     std::map<uint32_t, AgentInfo> GetAgentsInfoCopy() const;
     void AddSkillUsed(uint32_t agent_id, uint32_t skill_id); 
+    void SortAgentSkills(uint32_t agent_id);
 
     void UpdateGuildInfo(const GuildInfo& info);
     std::map<uint16_t, GuildInfo> GetGuildsInfoCopy() const;

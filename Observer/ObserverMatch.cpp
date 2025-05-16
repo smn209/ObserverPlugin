@@ -14,6 +14,12 @@
 #include <GWCA/Context/PartyContext.h>
 #include <GWCA/Managers/AgentMgr.h>   
 
+#include <GWCA/Managers/MapMgr.h>
+#include <GWCA/Managers/SkillbarMgr.h>
+#include <GWCA/Constants/Maps.h>
+#include <GWCA/GameEntities/Map.h>
+#include <GWCA/GameEntities/Skill.h>
+
 #include <filesystem> 
 #include <fstream>    
 #include <string>     
@@ -23,6 +29,10 @@
 #include <windows.h>  
 
 #include <Utils/TextUtils.h>
+#include <Utils/GuiUtils.h>
+#include <Utils/ToolboxUtils.h>
+#include <GWCA/Utilities/Hooker.h>
+#include <GWCA/Utilities/Scanner.h>
 
 std::string EscapeWideStringForJSON(const std::wstring& wstr);
 std::string DecodeAgentNameForJSON(const std::wstring& encoded_name);
@@ -154,16 +164,16 @@ void ObserverMatch::SetMatchEndInfo(uint32_t end_time_ms, uint32_t raw_winner_id
 }
 
 void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
-    if (info.agent_id == 0) return; 
+    if (info.agent_id == 0) return; // don't store info for invalid agent IDs
 
     std::lock_guard<std::mutex> lock(agents_info_mutex);
     // find the agent in the agents_info map
     auto it = agents_info.find(info.agent_id);
     if (it != agents_info.end()) {
         // agent exists, preserve existing skills and update other fields
-        std::set<uint32_t> existing_skills = it->second.used_skill_ids;
+        std::vector<uint32_t> existing_skills = it->second.used_skill_ids;
         it->second = info; // update the basic info
-        it->second.used_skill_ids = std::move(existing_skills); // restore skills
+        it->second.used_skill_ids = std::move(existing_skills); // restore skills with preserved order
     } else {
         // new agent, insert directly
         agents_info[info.agent_id] = info;
@@ -181,10 +191,95 @@ void MatchInfo::AddSkillUsed(uint32_t agent_id, uint32_t skill_id) {
     std::lock_guard<std::mutex> lock(agents_info_mutex);
     auto it = agents_info.find(agent_id);
     if (it != agents_info.end()) {
-        // agent found, insert the skill ID into their set
-        it->second.used_skill_ids.insert(skill_id);
+        // Check if the skill ID already exists in the vector (mimic set behavior)
+        auto& skill_ids = it->second.used_skill_ids;
+        if (std::find(skill_ids.begin(), skill_ids.end(), skill_id) == skill_ids.end()) {
+            // Skill not found, add it
+            skill_ids.push_back(skill_id);
+            // Sort skills immediately when a new one is added
+            SortAgentSkills(agent_id);
+        }
     }
     // if agent not found, do nothing. agent info should be populated by ObserverLoop first.
+}
+
+void MatchInfo::SortAgentSkills(uint32_t agent_id) {
+    auto it = agents_info.find(agent_id);
+    if (it == agents_info.end()) return;
+
+    auto& agent = it->second;
+    auto& skills = agent.used_skill_ids;
+    
+    if (skills.empty()) return;
+    
+    // determine if the agent has an elite skill
+    bool has_elite = false;
+    uint32_t elite_profession = 0;
+    
+    for (uint32_t skill_id : skills) {
+        GW::Skill* skill = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(skill_id));
+        if (skill && skill->IsElite()) {
+            has_elite = true;
+            elite_profession = static_cast<uint32_t>(skill->profession);
+            break;
+        }
+    }
+    
+    // second step: sort skills
+    std::sort(skills.begin(), skills.end(), [&agent, has_elite, elite_profession](uint32_t skill_id1, uint32_t skill_id2) -> bool {
+        // get skill data
+        GW::Skill* skill1 = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(skill_id1));
+        GW::Skill* skill2 = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(skill_id2));
+        
+        if (!skill1 || !skill2) {
+            // if one skill has no data, place the one with data first
+            return skill1 != nullptr;
+        }
+        
+        uint32_t prof1 = static_cast<uint32_t>(skill1->profession);
+        uint32_t prof2 = static_cast<uint32_t>(skill2->profession);
+        bool is_elite1 = skill1->IsElite();
+        bool is_elite2 = skill2->IsElite();
+        
+        // case 1: if we have an elite
+        if (has_elite) {
+            // the elite will always be first
+            if (is_elite1 && !is_elite2) return true;
+            if (!is_elite1 && is_elite2) return false;
+            
+            // skills of the same profession as the elite are prioritized
+            bool is_elite_prof1 = (prof1 == elite_profession);
+            bool is_elite_prof2 = (prof2 == elite_profession);
+            if (is_elite_prof1 != is_elite_prof2) {
+                return is_elite_prof1;
+            }
+            
+            // same profession, sort by type
+            if (skill1->type != skill2->type) {
+                return skill1->type < skill2->type;
+            }
+            
+            // same type, sort by ID
+            return skill_id1 < skill_id2;
+        }
+        // case 2: no elite, sort by primary/secondary profession
+        else {
+            // primary profession first
+            bool is_primary1 = (prof1 == agent.primary_profession);
+            bool is_primary2 = (prof2 == agent.primary_profession);
+            if (is_primary1 != is_primary2) {
+                return is_primary1;
+            }
+            
+            // same profession status, sort by type
+            if (skill1->type != skill2->type) {
+                return skill1->type < skill2->type;
+            }
+            
+            // same type, sort by ID
+            return skill_id1 < skill_id2;
+        }
+    });
 }
 
 void MatchInfo::UpdateGuildInfo(const GuildInfo& info) {

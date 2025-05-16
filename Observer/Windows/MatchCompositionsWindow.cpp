@@ -154,15 +154,14 @@ void MatchCompositionsWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible)
                     ImGui::Indent();
                     ImGui::BeginGroup();
                     size_t num_skills = agent.used_skill_ids.size();
-                    auto skill_it = agent.used_skill_ids.begin();
+                    
                     for (int i = 0; i < 8; ++i) {
                         uint32_t skill_id = 0;
-                        bool skill_exists = static_cast<size_t>(i) < num_skills && skill_it != agent.used_skill_ids.end();
+                        bool skill_exists = static_cast<size_t>(i) < num_skills;
 
                         if (skill_exists) {
-                           skill_id = *skill_it;
+                           skill_id = agent.used_skill_ids[i];
                            if (skill_id == 0) skill_exists = false;
-                           std::advance(skill_it, 1);
                         } else {
 
                         }
