@@ -37,6 +37,7 @@ public:
     ~ObserverPlugin() override;
 
     const char* Name() const override;
+    [[nodiscard]] const char* Icon() const override { return ICON_FA_FLAG; }
 
     // plugin lifecycle functions
     void Initialize(ImGuiContext* ctx, ImGuiAllocFns allocator_fns, HMODULE toolbox_dll) override;
