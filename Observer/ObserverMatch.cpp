@@ -19,6 +19,7 @@
 #include <GWCA/Constants/Maps.h>
 #include <GWCA/GameEntities/Map.h>
 #include <GWCA/GameEntities/Skill.h>
+#include <GWCA/Constants/Skills.h>
 
 #include <filesystem> 
 #include <fstream>    
@@ -312,6 +313,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
     bool agent_success = false;
 
     try {
+        this->UpdateAgentSkillTemplates();
+
         std::filesystem::path base_dir = "captures";
         std::filesystem::path match_dir = base_dir / folder_name;
 
@@ -435,8 +438,13 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"guild_id\": " << agent.guild_id
                                 << ", \"model_id\": " << agent.model_id
                                 << ", \"gadget_id\": " << agent.gadget_id
-                                << ", \"encoded_name\": " << decoded_name_json
-                                << ", \"used_skills\": [";
+                                << ", \"encoded_name\": " << decoded_name_json;
+
+                        if (!agent.skill_template_code.empty()) {
+                            outfile << ", \"skill_template_code\": \"" << agent.skill_template_code << "\"";
+                        }
+                        
+                        outfile << ", \"used_skills\": [";
                         // add used skills to the array
                         bool first_skill = true;
                         for (uint32_t skill_id : agent.used_skill_ids) {
@@ -562,6 +570,8 @@ void ObserverMatch::HandleMatchEnd() {
         owner_plugin->loop_handler->Stop();
     }
 
+    this->UpdateAgentSkillTemplates();
+
     if (owner_plugin && owner_plugin->auto_export_on_match_end) {
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-export triggered...");
         if (strlen(owner_plugin->export_folder_name) > 0) {
@@ -598,6 +608,7 @@ void ObserverMatch::HandleMatchEnd() {
          GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Auto-reset name disabled.");
     }
 }
+
 void MatchInfo::Reset() {
     map_id = 0;
     end_time_ms = 0;
@@ -627,4 +638,54 @@ bool ObserverMatch::IsObserving() const {
 
 MatchInfo& ObserverMatch::GetMatchInfo() {
     return current_match_info_;
+}
+
+void MatchInfo::UpdateAgentSkillTemplate(uint32_t agent_id) {
+    if (agent_id == 0) return;
+
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it == agents_info.end()) return;
+
+    AgentInfo& agent = it->second;
+    
+    GW::SkillbarMgr::SkillTemplate skill_template;
+    
+    skill_template.primary = static_cast<GW::Constants::Profession>(agent.primary_profession);
+    skill_template.secondary = static_cast<GW::Constants::Profession>(agent.secondary_profession);
+    
+    skill_template.attributes_count = 0;
+    memset(skill_template.attribute_ids, 0, sizeof(skill_template.attribute_ids));
+    memset(skill_template.attribute_values, 0, sizeof(skill_template.attribute_values));
+    
+    memset(skill_template.skills, 0, sizeof(skill_template.skills));
+    const size_t max_skills = std::min(agent.used_skill_ids.size(), (size_t)8);
+    for (size_t i = 0; i < max_skills; i++) {
+        uint32_t skill_id = agent.used_skill_ids[i];
+        
+        // here we convert PvP skills to PvE skills if needed
+        GW::Skill* skill = GW::SkillbarMgr::GetSkillConstantData(static_cast<GW::Constants::SkillID>(skill_id));
+        if (skill && skill->IsPvP() && static_cast<uint32_t>(skill->skill_id_pvp) != 0) {
+            // if it's a PvP skill, we use skill_id_pvp which is actually the PvE version
+            skill_id = static_cast<uint32_t>(skill->skill_id_pvp);
+        }
+        
+        skill_template.skills[i] = static_cast<GW::Constants::SkillID>(skill_id);
+    }
+    
+    char template_code[128] = {0};
+    if (GW::SkillbarMgr::EncodeSkillTemplate(skill_template, template_code, sizeof(template_code))) {
+        agent.skill_template_code = template_code;
+    } else {
+        agent.skill_template_code = "";
+    }
+}
+
+// implementation of the function to update the skill templates of all agents
+void ObserverMatch::UpdateAgentSkillTemplates() {
+    std::map<uint32_t, AgentInfo> agents_copy = current_match_info_.GetAgentsInfoCopy();
+    for (const auto& pair : agents_copy) {
+        current_match_info_.UpdateAgentSkillTemplate(pair.first);
+    }
+
 }

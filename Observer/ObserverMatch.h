@@ -39,6 +39,7 @@ struct AgentInfo {
     std::vector<uint32_t> used_skill_ids;
     uint32_t model_id = 0;
     uint32_t gadget_id = 0;
+    std::string skill_template_code; 
 };
 
 struct GuildInfo {
@@ -77,6 +78,7 @@ struct MatchInfo {
     std::map<uint32_t, AgentInfo> GetAgentsInfoCopy() const;
     void AddSkillUsed(uint32_t agent_id, uint32_t skill_id); 
     void SortAgentSkills(uint32_t agent_id);
+    void UpdateAgentSkillTemplate(uint32_t agent_id); 
 
     void UpdateGuildInfo(const GuildInfo& info);
     std::map<uint16_t, GuildInfo> GetGuildsInfoCopy() const;
@@ -99,6 +101,7 @@ public:
     void ClearLogs();
     bool ExportLogsToFolder(const wchar_t* folder_name);
     void HandleMatchEnd();
+    void UpdateAgentSkillTemplates();
 
 private:
     void HandleInstanceLoadInfo(const GW::HookStatus* status, const GW::Packet::StoC::InstanceLoadInfo* packet);
