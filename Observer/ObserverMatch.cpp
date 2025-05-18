@@ -35,9 +35,6 @@
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
 
-std::string EscapeWideStringForJSON(const std::wstring& wstr);
-std::string DecodeAgentNameForJSON(const std::wstring& encoded_name);
-
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
 {
@@ -149,15 +146,33 @@ void ObserverMatch::SetMatchEndInfo(uint32_t end_time_ms, uint32_t raw_winner_id
     current_match_info_.end_time_ms = end_time_ms;
     current_match_info_.winner_party_id = party_id_to_store;
 
-    // format the timestamp like in ObserverCapture::AddLogEntry
-    uint32_t total_seconds = end_time_ms / 1000;
-    uint32_t minutes = total_seconds / 60;
-    uint32_t seconds = total_seconds % 60;
-    uint32_t milliseconds = end_time_ms % 1000;
+    // format the original timestamp like in ObserverCapture::AddLogEntry
+    uint32_t total_seconds_orig = end_time_ms / 1000;
+    uint32_t minutes_orig = total_seconds_orig / 60;
+    uint32_t seconds_orig = total_seconds_orig % 60;
+    uint32_t milliseconds_orig = end_time_ms % 1000;
     wchar_t formatted_time[32];
-    swprintf(formatted_time, 32, L"%02u:%02u.%03u", minutes, seconds, milliseconds);
-
+    swprintf(formatted_time, _countof(formatted_time), L"%02u:%02u.%03u", minutes_orig, seconds_orig, milliseconds_orig);
     current_match_info_.end_time_formatted = formatted_time;
+
+    // store original match duration (without adjustment)
+    wchar_t original_duration_str[16];
+    swprintf(original_duration_str, _countof(original_duration_str), L"%02u:%02u", minutes_orig, seconds_orig);
+    current_match_info_.match_original_duration = original_duration_str;
+
+    // calculate and format adjusted match duration
+    uint32_t adjusted_duration_ms;
+    if (end_time_ms < 60000) { // less than 1 minute
+        adjusted_duration_ms = 0;
+    } else {
+        adjusted_duration_ms = end_time_ms - 60000; // subtract 1 minute (time before door open)
+    }
+    uint32_t adj_total_seconds = adjusted_duration_ms / 1000;
+    uint32_t adj_minutes = adj_total_seconds / 60;
+    uint32_t adj_seconds = adj_total_seconds % 60;
+    wchar_t adjusted_formatted_str[16];
+    swprintf(adjusted_formatted_str, _countof(adjusted_formatted_str), L"%02u:%02u", adj_minutes, adj_seconds);
+    current_match_info_.match_duration = adjusted_formatted_str;
 
     wchar_t msg[256];
     swprintf_s(msg, L"Match end info captured by ObserverMatch: Time=[%ls], Winner Party=%u", formatted_time, current_match_info_.winner_party_id);
@@ -408,6 +423,38 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                 // occasion
                 outfile << ",\n";
                 outfile << "  \"occasion\": \"General Scrimmage\"";
+
+                // match duration (adjusted - minus 1 min)
+                if (!match_info.match_duration.empty()) {
+                    std::string utf8_duration;
+                    try {
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, match_info.match_duration.c_str(), (int)match_info.match_duration.size(), NULL, 0, NULL, NULL);
+                        if (size_needed > 0) {
+                            utf8_duration.resize(size_needed, 0);
+                            WideCharToMultiByte(CP_UTF8, 0, match_info.match_duration.c_str(), (int)match_info.match_duration.size(), &utf8_duration[0], size_needed, NULL, NULL);
+                        }
+                    } catch (...) {
+                        utf8_duration = "[conversion_error]";
+                    }
+                    outfile << ",\n";
+                    outfile << "  \"match_duration\": \"" << utf8_duration << "\"";
+                }
+                
+                // original match duration (without adjustment)
+                if (!match_info.match_original_duration.empty()) {
+                    std::string utf8_orig_duration;
+                    try {
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, match_info.match_original_duration.c_str(), (int)match_info.match_original_duration.size(), NULL, 0, NULL, NULL);
+                        if (size_needed > 0) {
+                            utf8_orig_duration.resize(size_needed, 0);
+                            WideCharToMultiByte(CP_UTF8, 0, match_info.match_original_duration.c_str(), (int)match_info.match_original_duration.size(), &utf8_orig_duration[0], size_needed, NULL, NULL);
+                        }
+                    } catch (...) {
+                        utf8_orig_duration = "[conversion_error]";
+                    }
+                    outfile << ",\n";
+                    outfile << "  \"match_original_duration\": \"" << utf8_orig_duration << "\"";
+                }
                 
                 if (match_info.end_time_ms > 0) {
                     outfile << ",\n";
