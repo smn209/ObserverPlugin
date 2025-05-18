@@ -376,8 +376,26 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                 localtime_s(&tm, &t);
                 
                 // flux
+                std::vector<std::string> monthly_flux = {
+                    "Odran's Razor",               // January (tm_mon = 0)
+                    "Amateur Hour",                // February
+                    "Hidden Talent",               // March
+                    "There Can Be Only One",       // April
+                    "Meek Shall Inherit",          // May
+                    "Jack of All Trades",          // June
+                    "Chain Combo",                 // July
+                    "Xinrae's Revenge",            // August
+                    "Like a Boss (and The Boss)",  // September
+                    "Minion Apocalypse",           // October
+                    "All In",                      // November
+                    "Parting Gift (and Gift of Battle)" // December
+                };
+                std::string current_flux = "Unknown Flux"; // Default fallback
+                if (tm.tm_mon >= 0 && tm.tm_mon < 12) {
+                    current_flux = monthly_flux[tm.tm_mon];
+                }
                 outfile << ",\n";
-                outfile << "  \"flux\": \"Meek Shall Inherit\"";
+                outfile << "  \"flux\": \"" << current_flux << "\"";
                 
                 // date
                 outfile << ",\n";
