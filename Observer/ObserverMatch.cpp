@@ -35,7 +35,33 @@
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
 
-extern "C" const char* __cdecl GetMapNameString(GW::Constants::MapID map_id);
+// local implementation of map name retrieval for plugin use
+// uses gwca apis directly to avoid linker dependencies on gwtoolboxdll exports
+std::string GetMapNameFromGWCA(GW::Constants::MapID map_id) {
+    GW::AreaInfo* map_info = GW::Map::GetMapInfo(map_id);
+    if (!map_info || !map_info->name_id) {
+        return "Unknown Map";
+    }
+    
+    // convert name_id to encoded string format
+    wchar_t enc_string[16];
+    GW::UI::UInt32ToEncStr(map_info->name_id, enc_string, 16);
+    
+    // decode the encoded string to readable text
+    wchar_t decoded_string[256];
+    GW::UI::AsyncDecodeStr(enc_string, decoded_string, 256);
+    
+    // convert wide string to utf8 for json export compatibility
+    int size_needed = WideCharToMultiByte(CP_UTF8, 0, decoded_string, -1, NULL, 0, NULL, NULL);
+    if (size_needed <= 0) {
+        return "Unknown Map";
+    }
+    
+    std::string utf8_string(size_needed - 1, 0);
+    WideCharToMultiByte(CP_UTF8, 0, decoded_string, -1, &utf8_string[0], size_needed, NULL, NULL);
+    
+    return utf8_string;
+}
 
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
@@ -346,9 +372,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
         if (outfile.is_open()) {             outfile << "{\n";            outfile << "  \"map_id\": " << match_info.map_id;
             outfile << ",\n";
             
-            // use exported function from GWToolboxdll Resources module
-            const char* map_name_cstr = GetMapNameString(static_cast<GW::Constants::MapID>(match_info.map_id));
-            std::string map_name = map_name_cstr ? map_name_cstr : "Unknown Map";
+            // get map name using local gwca implementation
+            std::string map_name = GetMapNameFromGWCA(static_cast<GW::Constants::MapID>(match_info.map_id));
             
             outfile << "  \"map_name\": \"" << map_name << "\"";
             
