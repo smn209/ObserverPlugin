@@ -52,15 +52,30 @@ struct AgentState {
     bool has_weapon_spell = false;
 
     bool is_holding = false;
-    bool is_casting = false;
-    uint32_t skill_id = 0;
-
+    bool is_casting = false;    uint32_t skill_id = 0;
     uint8_t weapon_item_type = 0;
     uint8_t offhand_item_type = 0;
     uint16_t weapon_item_id = 0;
     uint16_t offhand_item_id = 0;
-
-    bool operator==(const AgentState& other) const {
+    float move_x = 0.0f;
+    float move_y = 0.0f;
+    uint16_t visual_effects = 0;
+    uint8_t team_id = 0;
+    uint16_t weapon_type = 0;
+    float weapon_attack_speed = 0.0f;
+    float attack_speed_modifier = 0.0f;
+    uint8_t dagger_status = 0;
+    float hp_pips = 0.0f;
+    uint32_t model_state = 0;
+    uint32_t animation_code = 0;
+    uint32_t animation_id = 0;
+    float animation_speed = 0.0f;
+    float animation_type = 0.0f;
+    uint32_t in_spirit_range = 0;
+    uint16_t agent_model_type = 0;
+    uint32_t item_id = 0;
+    uint32_t item_extra_type = 0;
+    uint32_t gadget_extra_type = 0;bool operator==(const AgentState& other) const {
         return x == other.x && y == other.y && z == other.z &&
                rotation_angle == other.rotation_angle &&
                weapon_id == other.weapon_id &&
@@ -77,7 +92,18 @@ struct AgentState {
                is_holding == other.is_holding && is_casting == other.is_casting &&
                skill_id == other.skill_id &&
                weapon_item_type == other.weapon_item_type && offhand_item_type == other.offhand_item_type &&
-               weapon_item_id == other.weapon_item_id && offhand_item_id == other.offhand_item_id;
+               weapon_item_id == other.weapon_item_id && offhand_item_id == other.offhand_item_id &&
+               move_x == other.move_x && move_y == other.move_y &&
+               visual_effects == other.visual_effects && team_id == other.team_id &&
+               weapon_type == other.weapon_type &&
+               weapon_attack_speed == other.weapon_attack_speed && attack_speed_modifier == other.attack_speed_modifier &&
+               dagger_status == other.dagger_status && hp_pips == other.hp_pips &&
+               model_state == other.model_state && animation_code == other.animation_code &&
+               animation_id == other.animation_id && animation_speed == other.animation_speed &&
+               animation_type == other.animation_type && in_spirit_range == other.in_spirit_range &&
+               agent_model_type == other.agent_model_type &&
+               item_id == other.item_id && item_extra_type == other.item_extra_type &&
+               gadget_extra_type == other.gadget_extra_type;
     }
 
     bool operator!=(const AgentState& other) const {

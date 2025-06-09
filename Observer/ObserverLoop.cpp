@@ -158,9 +158,7 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
                          (timestamp_ms / 1000) / 60, 
                          (timestamp_ms / 1000) % 60, 
                          timestamp_ms % 1000);
-                buffer << timestamp;
-
-                // format AgentState back into the semicolon-delimited string
+                buffer << timestamp;                // format AgentState back into the semicolon-delimited string
                 buffer << state.x << L";" << state.y << L";" << state.z << L";"
                        << state.rotation_angle << L";" << state.weapon_id << L";"
                        << state.model_id << L";" << state.gadget_id << L";"
@@ -185,7 +183,19 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
                        << static_cast<uint32_t>(state.weapon_item_type) << L";"
                        << static_cast<uint32_t>(state.offhand_item_type) << L";"
                        << state.weapon_item_id << L";"
-                       << state.offhand_item_id;
+                       << state.offhand_item_id << L";"
+                       << state.move_x << L";" << state.move_y << L";"
+                       << state.visual_effects << L";" << static_cast<uint32_t>(state.team_id) << L";"
+                       << state.weapon_type << L";"
+                       << state.weapon_attack_speed << L";" << state.attack_speed_modifier << L";"
+                       << static_cast<uint32_t>(state.dagger_status) << L";"
+                       << state.hp_pips << L";"
+                       << state.model_state << L";" << state.animation_code << L";"
+                       << state.animation_id << L";" << state.animation_speed << L";"
+                       << state.animation_type << L";"
+                       << state.in_spirit_range << L";" << state.agent_model_type << L";"
+                       << state.item_id << L";"
+                       << state.item_extra_type << L";" << state.gadget_extra_type;
 
                 buffer << L"\n";
             }
@@ -508,20 +518,64 @@ AgentState ObserverLoop::GetAgentState(GW::Agent* agent) {
         // buff status
         state.has_enchantment = living->GetIsEnchanted();
         state.has_weapon_spell = living->GetIsWeaponSpelled();
-          // action status
+        // action status
         state.is_holding = (living->model_state & 0x400) != 0;
         state.is_casting = living->GetIsCasting(); 
         state.skill_id = living->skill;
-        
         // weapon and offhand equipment
         state.weapon_item_type = living->weapon_item_type;
         state.offhand_item_type = living->offhand_item_type;
         state.weapon_item_id = living->weapon_item_id;
         state.offhand_item_id = living->offhand_item_id;
-    } 
+        // movement and velocity
+        state.move_x = living->velocity.x;
+        state.move_y = living->velocity.y;
+
+        // visual and agent properties
+        state.visual_effects = living->visual_effects;
+
+        // agent identity and affiliations
+        state.team_id = living->team_id;
+
+        // combat and weapons
+        state.weapon_type = living->weapon_type;
+        state.weapon_attack_speed = living->weapon_attack_speed;
+        state.attack_speed_modifier = living->attack_speed_modifier;
+        state.dagger_status = living->dagger_status;
+
+        // energy and regeneration
+        state.hp_pips = living->hp_pips;
+
+        // animations and model state
+        state.model_state = living->model_state;
+        state.animation_code = living->animation_code;
+        state.animation_id = living->animation_id;
+        state.animation_speed = living->animation_speed;
+        state.animation_type = living->animation_type;
+
+        // advanced state information
+        state.in_spirit_range = living->in_spirit_range;
+        state.agent_model_type = living->agent_model_type;
+    }
     else if (agent->GetIsGadgetType()) {
         GW::AgentGadget* gadget = static_cast<GW::AgentGadget*>(agent);
         state.gadget_id = gadget->gadget_id;
+        state.gadget_extra_type = gadget->extra_type;
+
+        // base agent properties for gadgets
+        state.move_x = gadget->velocity.x;
+        state.move_y = gadget->velocity.y;
+        state.visual_effects = gadget->visual_effects;
+    }
+    else if (agent->GetIsItemType()) {
+        GW::AgentItem* item = static_cast<GW::AgentItem*>(agent);
+        state.item_id = item->item_id;
+        state.item_extra_type = item->extra_type;
+
+        // base agent properties for items
+        state.move_x = item->velocity.x;
+        state.move_y = item->velocity.y;
+        state.visual_effects = item->visual_effects;
     }
     
     return state; 
@@ -535,9 +589,8 @@ void ObserverLoop::PopulateLivingAgentDetails(GW::AgentLiving* living, AgentInfo
     
     info.level = living->level;
     info.team_id = living->team_id;
-    info.model_id = living->player_number; // For living agents, model_id is stored in player_number
+    info.model_id = living->player_number;
 
-    // Gadget_id is only applicable for gadget-type agents
     if (living->GetIsGadgetType()) {
         GW::AgentGadget* gadget = living->GetAsAgentGadget();
         if (gadget) {
