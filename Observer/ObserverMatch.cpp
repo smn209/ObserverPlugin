@@ -29,39 +29,8 @@
 #include <algorithm>  
 #include <windows.h>  
 
-#include <Utils/TextUtils.h>
-#include <Utils/GuiUtils.h>
-#include <Utils/ToolboxUtils.h>
-#include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
 
-// local implementation of map name retrieval for plugin use
-// uses gwca apis directly to avoid linker dependencies on gwtoolboxdll exports
-std::string GetMapNameFromGWCA(GW::Constants::MapID map_id) {
-    GW::AreaInfo* map_info = GW::Map::GetMapInfo(map_id);
-    if (!map_info || !map_info->name_id) {
-        return "Unknown Map";
-    }
-    
-    // convert name_id to encoded string format
-    wchar_t enc_string[16];
-    GW::UI::UInt32ToEncStr(map_info->name_id, enc_string, 16);
-    
-    // decode the encoded string to readable text
-    wchar_t decoded_string[256];
-    GW::UI::AsyncDecodeStr(enc_string, decoded_string, 256);
-    
-    // convert wide string to utf8 for json export compatibility
-    int size_needed = WideCharToMultiByte(CP_UTF8, 0, decoded_string, -1, NULL, 0, NULL, NULL);
-    if (size_needed <= 0) {
-        return "Unknown Map";
-    }
-    
-    std::string utf8_string(size_needed - 1, 0);
-    WideCharToMultiByte(CP_UTF8, 0, decoded_string, -1, &utf8_string[0], size_needed, NULL, NULL);
-    
-    return utf8_string;
-}
 
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
@@ -371,13 +340,6 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
         std::ofstream outfile(info_file);
         if (outfile.is_open()) {             outfile << "{\n";            outfile << "  \"map_id\": " << match_info.map_id;
             outfile << ",\n";
-            
-            // get map name using local gwca implementation
-            std::string map_name = GetMapNameFromGWCA(static_cast<GW::Constants::MapID>(match_info.map_id));
-            
-            outfile << "  \"map_name\": \"" << map_name << "\"";
-            
-            // current time
                 time_t t = std::time(nullptr);
                 std::tm tm;
                 localtime_s(&tm, &t);
@@ -772,13 +734,12 @@ void MatchInfo::UpdateAgentSkillTemplate(uint32_t agent_id) {
     
     skill_template.primary = static_cast<GW::Constants::Profession>(agent.primary_profession);
     skill_template.secondary = static_cast<GW::Constants::Profession>(agent.secondary_profession);
-    
-    skill_template.attributes_count = 0;
+      skill_template.attributes_count = 0;
     memset(skill_template.attribute_ids, 0, sizeof(skill_template.attribute_ids));
     memset(skill_template.attribute_values, 0, sizeof(skill_template.attribute_values));
     
     memset(skill_template.skills, 0, sizeof(skill_template.skills));
-    const size_t max_skills = std::min(agent.used_skill_ids.size(), (size_t)8);
+    const size_t max_skills = std::min(agent.used_skill_ids.size(), static_cast<size_t>(8));
     for (size_t i = 0; i < max_skills; i++) {
         uint32_t skill_id = agent.used_skill_ids[i];
         
