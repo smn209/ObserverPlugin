@@ -469,3 +469,16 @@ std::wstring ObserverPlugin::StringToWString(const std::string_view str) {
 
     return dest;
 }
+
+void ObserverPlugin::HandleMatchEndSignal(uint32_t winner_party_raw_id) {
+    uint32_t end_time_ms = GW::Map::GetInstanceTime();
+
+    if (match_handler) {
+        match_handler->SetMatchEndInfo(end_time_ms, winner_party_raw_id);
+    }
+
+    if (loop_handler && loop_handler->IsRunning()) {
+        loop_handler->Stop();
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Agent loop stopped due to victory detection.");
+    }
+}

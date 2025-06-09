@@ -35,9 +35,6 @@
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
 
-std::string EscapeWideStringForJSON(const std::wstring& wstr);
-std::string DecodeAgentNameForJSON(const std::wstring& encoded_name);
-
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
 {
@@ -149,15 +146,33 @@ void ObserverMatch::SetMatchEndInfo(uint32_t end_time_ms, uint32_t raw_winner_id
     current_match_info_.end_time_ms = end_time_ms;
     current_match_info_.winner_party_id = party_id_to_store;
 
-    // format the timestamp like in ObserverCapture::AddLogEntry
-    uint32_t total_seconds = end_time_ms / 1000;
-    uint32_t minutes = total_seconds / 60;
-    uint32_t seconds = total_seconds % 60;
-    uint32_t milliseconds = end_time_ms % 1000;
+    // format the original timestamp like in ObserverCapture::AddLogEntry
+    uint32_t total_seconds_orig = end_time_ms / 1000;
+    uint32_t minutes_orig = total_seconds_orig / 60;
+    uint32_t seconds_orig = total_seconds_orig % 60;
+    uint32_t milliseconds_orig = end_time_ms % 1000;
     wchar_t formatted_time[32];
-    swprintf(formatted_time, 32, L"%02u:%02u.%03u", minutes, seconds, milliseconds);
-
+    swprintf(formatted_time, _countof(formatted_time), L"%02u:%02u.%03u", minutes_orig, seconds_orig, milliseconds_orig);
     current_match_info_.end_time_formatted = formatted_time;
+
+    // store original match duration (without adjustment)
+    wchar_t original_duration_str[16];
+    swprintf(original_duration_str, _countof(original_duration_str), L"%02u:%02u", minutes_orig, seconds_orig);
+    current_match_info_.match_original_duration = original_duration_str;
+
+    // calculate and format adjusted match duration
+    uint32_t adjusted_duration_ms;
+    if (end_time_ms < 60000) { // less than 1 minute
+        adjusted_duration_ms = 0;
+    } else {
+        adjusted_duration_ms = end_time_ms - 60000; // subtract 1 minute (time before door open)
+    }
+    uint32_t adj_total_seconds = adjusted_duration_ms / 1000;
+    uint32_t adj_minutes = adj_total_seconds / 60;
+    uint32_t adj_seconds = adj_total_seconds % 60;
+    wchar_t adjusted_formatted_str[16];
+    swprintf(adjusted_formatted_str, _countof(adjusted_formatted_str), L"%02u:%02u", adj_minutes, adj_seconds);
+    current_match_info_.match_duration = adjusted_formatted_str;
 
     wchar_t msg[256];
     swprintf_s(msg, L"Match end info captured by ObserverMatch: Time=[%ls], Winner Party=%u", formatted_time, current_match_info_.winner_party_id);
@@ -329,6 +344,118 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
         if (outfile.is_open()) {
              outfile << "{\n";
                 outfile << "  \"map_id\": " << match_info.map_id;
+                
+                outfile << ",\n";
+                std::string map_name = "Unknown Map";
+                
+                switch (match_info.map_id) {
+                    case 171: map_name = "Warrior's Isle"; break;
+                    case 172: map_name = "Hunter's Isle"; break;
+                    case 173: map_name = "Wizard's Isle"; break;
+                    case 174: map_name = "Druid's Isle"; break;
+                    case 175: map_name = "Frozen Isle"; break;
+                    case 176: map_name = "Burning Isle"; break;
+                    case 177: map_name = "Monk's Isle"; break;
+                    case 178: map_name = "Isle of the Dead"; break;
+                    case 179: map_name = "Isle of Weeping Stone"; break;
+                    case 180: map_name = "Isle of Jade"; break;
+                    case 181: map_name = "Imperial Isle"; break;
+                    case 182: map_name = "Isle of Meditation"; break;
+                    case 183: map_name = "Corrupted Isle"; break;
+                    case 184: map_name = "Unholy Isle"; break;
+                    case 185: map_name = "Nomad's Isle"; break;
+                    case 186: map_name = "Uncharted Isle"; break;  
+                    case 188: map_name = "Ethnaran's Isle"; break;
+                    case 189: map_name = "Broken Isle"; break;
+                    case 190: map_name = "Isle of Solitude"; break;
+                    case 191: map_name = "Isle of Wurms"; break;
+                    case 192: map_name = "Celestial Arena"; break;
+                    case 193: map_name = "Saltspray Beach"; break;
+                    case 311: map_name = "Burial Mounds"; break;
+                    case 312: map_name = "Kaanai Canyon"; break;
+                    case 313: map_name = "Deldrimor Arena"; break;
+                    case 314: map_name = "The Underworld"; break;
+                    case 329: map_name = "The Courtyard"; break;
+                    case 337: map_name = "The Ancestral Lands"; break;
+                    case 350: map_name = "The Royal Court"; break;
+                    case 351: map_name = "Scarred Earth"; break;
+                    case 352: map_name = "The Hall of Heroes"; break;
+                    default: map_name = "Unknown Map"; break;
+                }
+                
+                outfile << "  \"map_name\": \"" << map_name << "\"";
+                
+                // current time 
+                time_t t = std::time(nullptr);
+                std::tm tm;
+                localtime_s(&tm, &t);
+                
+                // flux
+                std::vector<std::string> monthly_flux = {
+                    "Odran's Razor",               // January (tm_mon = 0)
+                    "Amateur Hour",                // February
+                    "Hidden Talent",               // March
+                    "There Can Be Only One",       // April
+                    "Meek Shall Inherit",          // May
+                    "Jack of All Trades",          // June
+                    "Chain Combo",                 // July
+                    "Xinrae's Revenge",            // August
+                    "Like a Boss (and The Boss)",  // September
+                    "Minion Apocalypse",           // October
+                    "All In",                      // November
+                    "Parting Gift (and Gift of Battle)" // December
+                };
+                std::string current_flux = "Unknown Flux"; // Default fallback
+                if (tm.tm_mon >= 0 && tm.tm_mon < 12) {
+                    current_flux = monthly_flux[tm.tm_mon];
+                }
+                outfile << ",\n";
+                outfile << "  \"flux\": \"" << current_flux << "\"";
+                
+                // date
+                outfile << ",\n";
+                outfile << "  \"day\": " << tm.tm_mday;
+                outfile << ",\n";
+                outfile << "  \"month\": " << tm.tm_mon + 1; // tm_mon is 0-11, we need 1-12
+                outfile << ",\n";
+                outfile << "  \"year\": " << tm.tm_year + 1900; // tm_year is years since 1900
+                
+                // occasion
+                outfile << ",\n";
+                outfile << "  \"occasion\": \"General Scrimmage\"";
+
+                // match duration (adjusted - minus 1 min)
+                if (!match_info.match_duration.empty()) {
+                    std::string utf8_duration;
+                    try {
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, match_info.match_duration.c_str(), (int)match_info.match_duration.size(), NULL, 0, NULL, NULL);
+                        if (size_needed > 0) {
+                            utf8_duration.resize(size_needed, 0);
+                            WideCharToMultiByte(CP_UTF8, 0, match_info.match_duration.c_str(), (int)match_info.match_duration.size(), &utf8_duration[0], size_needed, NULL, NULL);
+                        }
+                    } catch (...) {
+                        utf8_duration = "[conversion_error]";
+                    }
+                    outfile << ",\n";
+                    outfile << "  \"match_duration\": \"" << utf8_duration << "\"";
+                }
+                
+                // original match duration (without adjustment)
+                if (!match_info.match_original_duration.empty()) {
+                    std::string utf8_orig_duration;
+                    try {
+                        int size_needed = WideCharToMultiByte(CP_UTF8, 0, match_info.match_original_duration.c_str(), (int)match_info.match_original_duration.size(), NULL, 0, NULL, NULL);
+                        if (size_needed > 0) {
+                            utf8_orig_duration.resize(size_needed, 0);
+                            WideCharToMultiByte(CP_UTF8, 0, match_info.match_original_duration.c_str(), (int)match_info.match_original_duration.size(), &utf8_orig_duration[0], size_needed, NULL, NULL);
+                        }
+                    } catch (...) {
+                        utf8_orig_duration = "[conversion_error]";
+                    }
+                    outfile << ",\n";
+                    outfile << "  \"match_original_duration\": \"" << utf8_orig_duration << "\"";
+                }
+                
                 if (match_info.end_time_ms > 0) {
                     outfile << ",\n";
                     outfile << "  \"match_end_time_ms\": " << match_info.end_time_ms;

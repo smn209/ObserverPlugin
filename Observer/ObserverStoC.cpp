@@ -534,11 +534,9 @@ void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* pack
 
     // capture match end info if it's a victory message
     if (is_victory_message) {
-        uint32_t instance_time_ms = GW::Map::GetInstanceTime();
         uint32_t winner_id = packet->value; // value indicates the winning party (raw ID)
 
-        // call ObserverMatch to handle setting the info (including translation)
-        owner->match_handler->SetMatchEndInfo(instance_time_ms, winner_id);
+        owner->HandleMatchEndSignal(winner_id);
     }
 
     // prepend marker and add to internal log

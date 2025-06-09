@@ -122,6 +122,7 @@ public:
     // public helper functions for use by other classes in the plugin
     std::string WStringToString(const std::wstring_view str);
     std::wstring StringToWString(const std::string_view str);
+    void HandleMatchEndSignal(uint32_t winner_party_raw_id);
 
 private:
     CaptureStatusWindow capture_status_window;

@@ -61,6 +61,8 @@ struct MatchInfo {
     uint32_t map_id = 0;
     uint32_t end_time_ms = 0;
     std::wstring end_time_formatted = L""; // store formatted time [mm:ss.ms]
+    std::wstring match_duration = L""; // store adjusted formatted time [mm:ss] (minus 1 min)
+    std::wstring match_original_duration = L""; // store original duration without adjustment [mm:ss]
     uint32_t winner_party_id = 0; // 0 = not set, 1 = party 1, 2 = party 2
 
     std::map<uint32_t, AgentInfo> agents_info;
