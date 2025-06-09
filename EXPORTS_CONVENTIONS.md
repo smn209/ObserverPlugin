@@ -10,7 +10,7 @@ This document details the semicolon-delimited formats for various data files exp
 
 These compressed files (`gzip`) contain periodic snapshots of agent states captured by the `ObserverLoop` thread every `kLoopInterval` (currently 200ms). Each file corresponds to a single agent, identified by `<agent_id>`.
 
-**Format:** `[MM:SS.ms] x;y;z;angle;weapon_id;is_alive;is_dead;health_pct;is_knocked;life_hp;has_condition;has_deep_wound;has_bleeding;has_crippled;has_blind;has_poison;has_hex;has_degen_hex;has_enchantment;has_weapon_spell;is_holding;is_casting;skill_id`
+**Format:** `[MM:SS.ms] x;y;z;rotation_angle;weapon_id;model_id;gadget_id;is_alive;is_dead;health_pct;is_knocked;max_hp;has_condition;has_deep_wound;has_bleeding;has_crippled;has_blind;has_poison;has_hex;has_degen_hex;has_enchantment;has_weapon_spell;is_holding;is_casting;skill_id`
 
 | Field Name         | Data Type | Description                                                                 | Notes                                                   |
 | :----------------- | :-------- | :-------------------------------------------------------------------------- | :------------------------------------------------------ |
@@ -18,13 +18,15 @@ These compressed files (`gzip`) contain periodic snapshots of agent states captu
 | `x`                | Float     | Agent's X coordinate                                                        |                                                         |
 | `y`                | Float     | Agent's Y coordinate                                                        |                                                         |
 | `z`                | Float     | Agent's Z coordinate (plane)                                                | From `agent->z`                                         |
-| `angle`            | Float     | Agent's rotation angle (radians)                                            | From `agent->rotation_angle`                            |
+| `rotation_angle`   | Float     | Agent's rotation angle (radians)                                            | From `agent->rotation_angle`                            |
 | `weapon_id`        | UInt32    | ID of the equipped weapon                                                   | **Caution:** Currently always 0 (placeholder)           |
+| `model_id`         | UInt32    | Model/character ID                                                          | From `living->player_number` for living agents          |
+| `gadget_id`        | UInt32    | Gadget ID for gadget-type agents                                            | From `gadget->gadget_id`, 0 for non-gadget agents       |
 | `is_alive`         | Boolean   | `1` if alive, `0` if dead                                                   | Based on `!living->GetIsDead()`                         |
 | `is_dead`          | Boolean   | `1` if dead, `0` if alive                                                   | Based on `living->GetIsDead()`                          |
 | `health_pct`       | Float     | Current health percentage (0.0 to 1.0)                                      | From `living->hp`, formatted to 3 decimal places        |
 | `is_knocked`       | Boolean   | `1` if knocked down, `0` otherwise                                          | Based on `living->GetIsKnockedDown()`                   |
-| `life_hp`          | UInt32    | Maximum health points                                                       | From `living->max_hp`                                   |
+| `max_hp`           | UInt32    | Maximum health points                                                       | From `living->max_hp`                                   |
 | `has_condition`    | Boolean   | `1` if under any condition effect, `0` otherwise                            | Based on `living->GetIsConditioned()`                   |
 | `has_deep_wound`   | Boolean   | `1` if has Deep Wound, `0` otherwise                                        | Based on `living->GetIsDeepWounded()`                   |
 | `has_bleeding`     | Boolean   | `1` if has Bleeding, `0` otherwise                                          | Based on `living->GetIsBleeding()`                      |
@@ -42,13 +44,13 @@ These compressed files (`gzip`) contain periodic snapshots of agent states captu
 **Important Notes:**
 *   **Sampling:** Data is captured periodically (e.g., every 200ms). Very rapid state changes occurring between samples might not be reflected.
 *   **Logging Threshold (Optimization):** To reduce file size and avoid redundant entries, a snapshot for a specific agent is logged **only if** it differs significantly from the previously logged snapshot for that same agent. The check involves two conditions:
-    1.  **Position Change:** The Manhattan distance (`abs(Δx) + abs(Δy) + abs(Δz)`) between the current and last position must be greater than or equal to `kPositionThreshold` (currently 30.0f game units).
-    2.  **Data Change:** *OR*, any other field in the log line (excluding the timestamp and the first three position coordinates) must have changed.
+    1.  **Position Change:** The squared Euclidean distance (`(Δx)² + (Δy)² + (Δz)²`) between the current and last position must be greater than or equal to `kDistanceThresholdSq` (currently 30.0f² = 900.0f game units squared).
+    2.  **Data Change:** *OR*, any other field in the log line (excluding the timestamp and position coordinates) must have changed.
     If *both* the position change is below the threshold *and* the rest of the data is identical, the snapshot is skipped.
 
 **Example (Living Agent):**
 ```
-[01:23.456] 8000.1;3000.2;14.0;1.57;0;1;0;0.853;0;500;1;0;1;0;0;1;1;0;1;0;0;1;123
+[01:23.456] 8000.1;3000.2;14.0;1.57;0;12345;0;1;0;0.853;0;500;1;0;1;0;0;1;1;0;1;0;0;1;123
 ```
 
 ---
