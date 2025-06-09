@@ -35,6 +35,8 @@
 #include <GWCA/Utilities/Hooker.h>
 #include <GWCA/Utilities/Scanner.h>
 
+extern "C" const char* __cdecl GetMapNameString(GW::Constants::MapID map_id);
+
 ObserverMatch::ObserverMatch(ObserverStoC* stoc_handler)
     : stoc_handler_(stoc_handler)
 {
@@ -341,51 +343,16 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
         std::map<uint32_t, AgentInfo> agents_info = match_info.GetAgentsInfoCopy();
         std::filesystem::path info_file = match_dir / "infos.json";
         std::ofstream outfile(info_file);
-        if (outfile.is_open()) {
-             outfile << "{\n";
-                outfile << "  \"map_id\": " << match_info.map_id;
-                
-                outfile << ",\n";
-                std::string map_name = "Unknown Map";
-                
-                switch (match_info.map_id) {
-                    case 171: map_name = "Warrior's Isle"; break;
-                    case 172: map_name = "Hunter's Isle"; break;
-                    case 173: map_name = "Wizard's Isle"; break;
-                    case 174: map_name = "Druid's Isle"; break;
-                    case 175: map_name = "Frozen Isle"; break;
-                    case 176: map_name = "Burning Isle"; break;
-                    case 177: map_name = "Monk's Isle"; break;
-                    case 178: map_name = "Isle of the Dead"; break;
-                    case 179: map_name = "Isle of Weeping Stone"; break;
-                    case 180: map_name = "Isle of Jade"; break;
-                    case 181: map_name = "Imperial Isle"; break;
-                    case 182: map_name = "Isle of Meditation"; break;
-                    case 183: map_name = "Corrupted Isle"; break;
-                    case 184: map_name = "Unholy Isle"; break;
-                    case 185: map_name = "Nomad's Isle"; break;
-                    case 186: map_name = "Uncharted Isle"; break;  
-                    case 188: map_name = "Ethnaran's Isle"; break;
-                    case 189: map_name = "Broken Isle"; break;
-                    case 190: map_name = "Isle of Solitude"; break;
-                    case 191: map_name = "Isle of Wurms"; break;
-                    case 192: map_name = "Celestial Arena"; break;
-                    case 193: map_name = "Saltspray Beach"; break;
-                    case 311: map_name = "Burial Mounds"; break;
-                    case 312: map_name = "Kaanai Canyon"; break;
-                    case 313: map_name = "Deldrimor Arena"; break;
-                    case 314: map_name = "The Underworld"; break;
-                    case 329: map_name = "The Courtyard"; break;
-                    case 337: map_name = "The Ancestral Lands"; break;
-                    case 350: map_name = "The Royal Court"; break;
-                    case 351: map_name = "Scarred Earth"; break;
-                    case 352: map_name = "The Hall of Heroes"; break;
-                    default: map_name = "Unknown Map"; break;
-                }
-                
-                outfile << "  \"map_name\": \"" << map_name << "\"";
-                
-                // current time 
+        if (outfile.is_open()) {             outfile << "{\n";            outfile << "  \"map_id\": " << match_info.map_id;
+            outfile << ",\n";
+            
+            // use exported function from GWToolboxdll Resources module
+            const char* map_name_cstr = GetMapNameString(static_cast<GW::Constants::MapID>(match_info.map_id));
+            std::string map_name = map_name_cstr ? map_name_cstr : "Unknown Map";
+            
+            outfile << "  \"map_name\": \"" << map_name << "\"";
+            
+            // current time
                 time_t t = std::time(nullptr);
                 std::tm tm;
                 localtime_s(&tm, &t);
