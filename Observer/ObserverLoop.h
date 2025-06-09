@@ -55,6 +55,11 @@ struct AgentState {
     bool is_casting = false;
     uint32_t skill_id = 0;
 
+    uint8_t weapon_item_type = 0;
+    uint8_t offhand_item_type = 0;
+    uint16_t weapon_item_id = 0;
+    uint16_t offhand_item_id = 0;
+
     bool operator==(const AgentState& other) const {
         return x == other.x && y == other.y && z == other.z &&
                rotation_angle == other.rotation_angle &&
@@ -70,7 +75,9 @@ struct AgentState {
                has_hex == other.has_hex && has_degen_hex == other.has_degen_hex &&
                has_enchantment == other.has_enchantment && has_weapon_spell == other.has_weapon_spell &&
                is_holding == other.is_holding && is_casting == other.is_casting &&
-               skill_id == other.skill_id;
+               skill_id == other.skill_id &&
+               weapon_item_type == other.weapon_item_type && offhand_item_type == other.offhand_item_type &&
+               weapon_item_id == other.weapon_item_id && offhand_item_id == other.offhand_item_id;
     }
 
     bool operator!=(const AgentState& other) const {

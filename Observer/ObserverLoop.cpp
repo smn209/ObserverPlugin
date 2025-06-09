@@ -181,7 +181,11 @@ bool ObserverLoop::ExportAgentLogs(const wchar_t* folder_name) {
                        << (state.has_weapon_spell ? L"1" : L"0") << L";"
                        << (state.is_holding ? L"1" : L"0") << L";"
                        << (state.is_casting ? L"1" : L"0") << L";"
-                       << state.skill_id;
+                       << state.skill_id << L";"
+                       << static_cast<uint32_t>(state.weapon_item_type) << L";"
+                       << static_cast<uint32_t>(state.offhand_item_type) << L";"
+                       << state.weapon_item_id << L";"
+                       << state.offhand_item_id;
 
                 buffer << L"\n";
             }
@@ -504,11 +508,16 @@ AgentState ObserverLoop::GetAgentState(GW::Agent* agent) {
         // buff status
         state.has_enchantment = living->GetIsEnchanted();
         state.has_weapon_spell = living->GetIsWeaponSpelled();
-        
-        // action status
+          // action status
         state.is_holding = (living->model_state & 0x400) != 0;
         state.is_casting = living->GetIsCasting(); 
-        state.skill_id = living->skill; 
+        state.skill_id = living->skill;
+        
+        // weapon and offhand equipment
+        state.weapon_item_type = living->weapon_item_type;
+        state.offhand_item_type = living->offhand_item_type;
+        state.weapon_item_id = living->weapon_item_id;
+        state.offhand_item_id = living->offhand_item_id;
     } 
     else if (agent->GetIsGadgetType()) {
         GW::AgentGadget* gadget = static_cast<GW::AgentGadget*>(agent);

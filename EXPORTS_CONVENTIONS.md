@@ -10,7 +10,7 @@ This document details the semicolon-delimited formats for various data files exp
 
 These compressed files (`gzip`) contain periodic snapshots of agent states captured by the `ObserverLoop` thread every `kLoopInterval` (currently 200ms). Each file corresponds to a single agent, identified by `<agent_id>`.
 
-**Format:** `[MM:SS.ms] x;y;z;rotation_angle;weapon_id;model_id;gadget_id;is_alive;is_dead;health_pct;is_knocked;max_hp;has_condition;has_deep_wound;has_bleeding;has_crippled;has_blind;has_poison;has_hex;has_degen_hex;has_enchantment;has_weapon_spell;is_holding;is_casting;skill_id`
+**Format:** `[MM:SS.ms] x;y;z;rotation_angle;weapon_id;model_id;gadget_id;is_alive;is_dead;health_pct;is_knocked;max_hp;has_condition;has_deep_wound;has_bleeding;has_crippled;has_blind;has_poison;has_hex;has_degen_hex;has_enchantment;has_weapon_spell;is_holding;is_casting;skill_id;weapon_item_type;offhand_item_type;weapon_item_id;offhand_item_id`
 
 | Field Name         | Data Type | Description                                                                 | Notes                                                   |
 | :----------------- | :-------- | :-------------------------------------------------------------------------- | :------------------------------------------------------ |
@@ -40,6 +40,10 @@ These compressed files (`gzip`) contain periodic snapshots of agent states captu
 | `is_holding`       | Boolean   | `1` if agent is holding an item/flag, `0` otherwise                         | Based on `(living->model_state & 0x400) != 0`         |
 | `is_casting`       | Boolean   | `1` if currently casting a skill, `0` otherwise                             | Based on `living->GetIsCasting()`                       |
 | `skill_id`         | UInt32    | ID of the skill currently being cast (`0` if not casting)                 | From `living->skill`                                    |
+| `weapon_item_type` | UInt8     | Type ID of equipped weapon item                                           | From `living->weapon_item_type`                         |
+| `offhand_item_type`| UInt8     | Type ID of equipped offhand item                                          | From `living->offhand_item_type`                        |
+| `weapon_item_id`   | UInt16    | Item ID of equipped weapon                                                | From `living->weapon_item_id`                           |
+| `offhand_item_id`  | UInt16    | Item ID of equipped offhand item                                          | From `living->offhand_item_id`                          |
 
 **Important Notes:**
 *   **Sampling:** Data is captured periodically (e.g., every 200ms). Very rapid state changes occurring between samples might not be reflected.
@@ -50,7 +54,7 @@ These compressed files (`gzip`) contain periodic snapshots of agent states captu
 
 **Example (Living Agent):**
 ```
-[01:23.456] 8000.1;3000.2;14.0;1.57;0;12345;0;1;0;0.853;0;500;1;0;1;0;0;1;1;0;1;0;0;1;123
+[01:23.456] 8000.1;3000.2;14.0;1.57;0;12345;0;1;0;0.853;0;500;1;0;1;0;0;1;1;0;1;0;0;1;123;2;0;456;0
 ```
 
 ---
