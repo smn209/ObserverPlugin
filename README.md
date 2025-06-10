@@ -72,6 +72,11 @@ This section outlines the planned development milestones for the Observer Plugin
 
 See issues of the project for current bugs and ideas of enhancements.
 
+## Credits
+
+- **Jon (GWToolbox++):** For contributions to observed match listing/entry.
+- **[Mile] Team:** Tedy and Kenshin for their assistance with observer features and Lord Damage code base ([MileLDC](https://github.com/PewPewKenshin/MileLDC/)).
+
 ## Disclaimer
 
 This project is an unofficial, fan-made utility developed independently. It is not affiliated with, endorsed, or sponsored by ArenaNet or NCsoft and is intended for personal use only.
@@ -85,6 +90,3 @@ This plugin enhances the Guild Wars observer experience by capturing match data.
 *   **Observer Mode Only:** Data capture is limited to when observing matches.
 
 The purpose is solely to provide enhanced data logging and review capabilities for observed matches via the GWToolbox++ framework. This tool does not claim ownership of any Guild Wars assets or intellectual property.
-
-
-
