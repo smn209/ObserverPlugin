@@ -55,7 +55,8 @@ ObserverPlugin::ObserverPlugin() :
     obs_show_cape_design(true),
     auto_reset_name_on_match_end(true),
     show_match_compositions_window(false),
-    show_match_compositions_settings_window(false) 
+    show_match_compositions_settings_window(false),
+    show_lord_damage_window(false)
 {
     stoc_handler = new ObserverStoC(this);
     match_handler = new ObserverMatch(stoc_handler);
@@ -172,6 +173,7 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(auto_reset_name_on_match_end);
     PLUGIN_LOAD_BOOL(show_match_compositions_window);
     PLUGIN_LOAD_BOOL(show_match_compositions_settings_window);
+    PLUGIN_LOAD_BOOL(show_lord_damage_window);
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
@@ -229,6 +231,7 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(auto_reset_name_on_match_end);
     PLUGIN_SAVE_BOOL(show_match_compositions_window);
     PLUGIN_SAVE_BOOL(show_match_compositions_settings_window);
+    PLUGIN_SAVE_BOOL(show_lord_damage_window);
 }
 
 // draws the generic UI settings in the main settings panel
@@ -374,6 +377,8 @@ void ObserverPlugin::Draw(
              if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the match compositions window (Teams, Players, Skills).");
              ImGui::Checkbox("Match Compositions Settings", &show_match_compositions_settings_window);
              if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens settings for the Match Compositions window.");
+             ImGui::Checkbox("Lord Damage Counter", &show_lord_damage_window);
+             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the Lord Damage counter for GvG matches.");
              ImGui::TreePop();
         }
         ImGui::Separator();
@@ -434,6 +439,10 @@ void ObserverPlugin::Draw(
 
     if (show_match_compositions_window) {
         match_compositions_window_.Draw(*this, show_match_compositions_window); 
+    }
+
+    if (show_lord_damage_window) {
+        lord_damage_window_.Draw(*this, show_lord_damage_window);
     }
 }
 

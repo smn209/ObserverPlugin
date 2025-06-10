@@ -2,6 +2,7 @@
 #include "ObserverMatch.h"
 #include "ObserverStoC.h" 
 #include "ObserverPlugin.h"
+#include "ObserverMatchData.h"
 #include "ObserverCapture.h" 
 #include "ObserverLoop.h"    
 #include "TextUtils.h"
@@ -86,6 +87,7 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
         current_match_info_.winner_party_id = 0;
 
         // clear StoC/Agent logs if this is a new observer match
+        ObserverMatchData::InitializeLordDamage();
         if (owner_plugin) {
             this->ClearLogs();
         }
