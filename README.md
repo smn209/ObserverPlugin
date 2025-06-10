@@ -19,6 +19,7 @@ To use the Observer Plugin:
 2.  Place the downloaded `Observer.dll` file into your GWToolbox++ `plugins` directory.
 
 ## Contributions
+[Documentation](Docs/CONTRIB.md)
 
 If you want to contribute, feel free to create pull requests / issues for bugs related or ideas. 
 
