@@ -66,13 +66,11 @@ void LordDamageWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible) {
             ImGui::TextDisabled("Waiting for match data or opponent information...");
             ImGui::End();
             return;
-        }
-        
-        if (ImGui::BeginTable("lord_damage_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        }          if (ImGui::BeginTable("lord_damage_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             
-            ImGui::TableSetupColumn("Team", ImGuiTableColumnFlags_WidthFixed, 200.0f);            
-            ImGui::TableSetupColumn("Damage", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+            ImGui::TableSetupColumn("Guild", ImGuiTableColumnFlags_WidthFixed, 200.0f);            
             ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthFixed, 80.0f);
+            ImGui::TableSetupColumn("Damage", ImGuiTableColumnFlags_WidthFixed, 100.0f);
             ImGui::TableHeadersRow();
             
             for (const auto& [team_id, team_agents] : teams) {
@@ -119,12 +117,6 @@ void LordDamageWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible) {
             ObserverMatchData::ResetLordDamage();
         }
         
-        ImGui::SameLine();
-        if (obs_plugin.match_handler && obs_plugin.match_handler->IsObserving()) {
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Observer Mode Active");
-        } else {
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Observer Mode Ended");
-        }
 
         DrawInfoSection();
     }
@@ -140,14 +132,14 @@ void LordDamageWindow::DrawTeamDamageRow(const std::string& team_name, const std
     ImGui::PopStyleColor();
     
     ImGui::TableSetColumnIndex(1);
-    ImGui::Text("%ld", damage);
-    
-    ImGui::TableSetColumnIndex(2);
     if (!guild_tag.empty()) {
         ImGui::Text("[%s]", guild_tag.c_str());
     } else {
         ImGui::Text("-");
     }
+    
+    ImGui::TableSetColumnIndex(2);
+    ImGui::Text("%ld", damage);
 }
 
 ImColor LordDamageWindow::GetTeamColor(uint32_t team_id) const {
@@ -160,12 +152,10 @@ ImColor LordDamageWindow::GetTeamColor(uint32_t team_id) const {
 
 void LordDamageWindow::DrawInfoSection() {
     if (ImGui::CollapsingHeader("Information")) {
-        ImGui::BulletText("This counter only works in observer mode");
         ImGui::BulletText("Only damage dealt to Guild Lords is counted");
         ImGui::BulletText("Enchantments and weapon spells on Guild Lord");
         ImGui::Text("   reduce team damage by 50 points");
         ImGui::BulletText("Life steal is counted as Lord damage");
-        ImGui::BulletText("For GvG matches only");
         
         ImGui::Spacing();
         ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Note:");
