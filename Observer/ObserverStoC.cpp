@@ -143,14 +143,7 @@ void ObserverStoC::RegisterCallbacks() {
         &JumboMessage_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::JumboMessage* packet) -> void {
             if (!owner) return; // Only check if owner exists
             handleJumboMessage(packet);
-        });
-
-    // OpposingPartyGuild (0x1AD)
-    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::OpposingPartyGuild>(
-        &OpposingPartyGuild_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::OpposingPartyGuild* packet) -> void {
-            if (!owner) return;
-            handleOpposingPartyGuild(packet);
-        });
+        });    // Note: OpposingPartyGuild packet no longer used - team detection now handled via agent analysis like MatchCompositions
 }
 
 void ObserverStoC::RemoveCallbacks() {
@@ -161,7 +154,7 @@ void ObserverStoC::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericFloat>(&GenericFloat_Entry);
     GW::StoC::RemoveCallback(GAME_SMSG_AGENT_MOVE_TO_POINT, &AgentMovement_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::JumboMessage>(&JumboMessage_Entry);
-    GW::StoC::RemoveCallback<GW::Packet::StoC::OpposingPartyGuild>(&OpposingPartyGuild_Entry);
+
 
     cleanupAgentActions(); // clean up map pointers before clearing the map itself
 }
@@ -623,11 +616,3 @@ void ObserverStoC::handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget*
     }
 }
 
-void ObserverStoC::handleOpposingPartyGuild(const GW::Packet::StoC::OpposingPartyGuild* packet) {
-    if (!packet) return;
-    
-    std::wstring guild_name(packet->guild_name);
-    std::wstring guild_tag(packet->guild_tag);
-    
-    ObserverMatchData::SetTeamInfo(packet->team_id, guild_name, guild_tag, packet->rank, packet->rating);
-}

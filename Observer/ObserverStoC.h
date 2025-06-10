@@ -74,7 +74,6 @@ private:
     void handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet);
     void handleDamagePacket(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type);
     void handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget* packet);
-    void handleOpposingPartyGuild(const GW::Packet::StoC::OpposingPartyGuild* packet);
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,

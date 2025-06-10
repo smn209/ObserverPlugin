@@ -104,12 +104,10 @@ namespace ObserverData {
 
 namespace ObserverMatchData {
 
-    static LordDamageData lord_damage_data;
-
+    static LordDamageData lord_damage_data;    
     void InitializeLordDamage() {
         std::lock_guard<std::mutex> lock(lord_damage_data.mutex);
         lord_damage_data.team_damage.clear();
-        lord_damage_data.team_info.clear();
     }
 
     void AddTeamLordDamage(uint32_t team_id, long damage) {
@@ -118,14 +116,6 @@ namespace ObserverMatchData {
         if (lord_damage_data.team_damage[team_id] < 0) {
             lord_damage_data.team_damage[team_id] = 0;
         }
-    }
-
-    void SetTeamInfo(uint32_t team_id, const std::wstring& guild_name, const std::wstring& guild_tag, uint32_t rank, uint32_t rating) {
-        std::lock_guard<std::mutex> lock(lord_damage_data.mutex);
-        lord_damage_data.team_info[team_id] = TeamInfo(guild_name, guild_tag, team_id);
-        lord_damage_data.team_info[team_id].rank = rank;
-        lord_damage_data.team_info[team_id].rating = rating;
-        lord_damage_data.team_damage[team_id] = 0;
     }
 
     void ResetLordDamage() {
@@ -139,10 +129,6 @@ namespace ObserverMatchData {
         std::lock_guard<std::mutex> lock(lord_damage_data.mutex);
         auto it = lord_damage_data.team_damage.find(team_id);
         return (it != lord_damage_data.team_damage.end()) ? it->second : 0L;
-    }    TeamInfo GetTeamInfo(uint32_t team_id) {
-        std::lock_guard<std::mutex> lock(lord_damage_data.mutex);
-        auto it = lord_damage_data.team_info.find(team_id);
-        return (it != lord_damage_data.team_info.end()) ? it->second : TeamInfo();
     }
 
 }

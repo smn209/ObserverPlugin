@@ -118,6 +118,7 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
              GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, L"Observer Mode map change detected (unexpected?). Resetting match info.");
              current_match_info_.Reset();
              current_match_info_.map_id = packet->map_id;
+             ObserverMatchData::InitializeLordDamage();
              if (owner_plugin) {
                 this->ClearLogs();
              }

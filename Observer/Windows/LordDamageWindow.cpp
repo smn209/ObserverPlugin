@@ -1,6 +1,7 @@
 #include "LordDamageWindow.h"
 #include "../ObserverPlugin.h"
 #include "../ObserverMatchData.h"
+#include "../ObserverMatch.h"
 #include <GWCA/Managers/MapMgr.h>
 #include <imgui.h>
 #include <algorithm>
@@ -11,9 +12,42 @@ void LordDamageWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible) {
         return;
     }
 
-    if (!GW::Map::GetIsObserving()) {
-        is_visible = false;
-        return;
+    MatchInfo* match_info = nullptr;
+    std::map<uint32_t, AgentInfo> agents_copy;
+    std::map<uint16_t, GuildInfo> guilds_copy;
+    
+    if (obs_plugin.match_handler) {
+        match_info = &obs_plugin.match_handler->GetMatchInfo();
+        agents_copy = match_info->GetAgentsInfoCopy();
+        guilds_copy = match_info->GetGuildsInfoCopy();
+    }
+    
+    std::map<uint32_t, std::vector<AgentInfo>> teams;
+    for (const auto& [agent_id, agent_info] : agents_copy) {
+        if (agent_info.team_id != 0 &&
+            (agent_info.type == AgentType::PLAYER || agent_info.type == AgentType::HERO || agent_info.type == AgentType::HENCHMAN)) {
+            teams[agent_info.team_id].push_back(agent_info);
+        }
+    }
+    
+    bool can_display_teams = false;
+    if (teams.size() >= 2) {
+        int teams_with_players = 0;
+        for (const auto& [team_id, team_agents] : teams) {
+            bool has_player = false;
+            for (const auto& agent : team_agents) {
+                if (agent.type == AgentType::PLAYER) {
+                    has_player = true;
+                    break;
+                }
+            }
+            if (has_player) {
+                teams_with_players++;
+            }
+        }
+        if (teams_with_players >= 2) {
+            can_display_teams = true;
+        }
     }
 
     ImGui::SetNextWindowSize(ImVec2(450.0f, 300.0f), ImGuiCond_FirstUseEver);
@@ -23,29 +57,61 @@ void LordDamageWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible) {
         ImGui::Separator();
         ImGui::Text("Guild Lord Damage Tracking");
         ImGui::Separator();
-        ImGui::Spacing();        if (ImGui::BeginTable("lord_damage_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
+        ImGui::Spacing();
+        
+        if (!can_display_teams && obs_plugin.match_handler && !obs_plugin.match_handler->IsObserving()) {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Match ended - Showing final results");
+            ImGui::Separator();
+        } else if (!can_display_teams) {
+            ImGui::TextDisabled("Waiting for match data or opponent information...");
+            ImGui::End();
+            return;
+        }
+        
+        if (ImGui::BeginTable("lord_damage_table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg)) {
             
-            ImGui::TableSetupColumn("Team", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+            ImGui::TableSetupColumn("Team", ImGuiTableColumnFlags_WidthFixed, 200.0f);            
             ImGui::TableSetupColumn("Damage", ImGuiTableColumnFlags_WidthFixed, 100.0f);
             ImGui::TableSetupColumn("Tag", ImGuiTableColumnFlags_WidthFixed, 80.0f);
             ImGui::TableHeadersRow();
             
-            for (uint32_t team_id = 1; team_id <= 2; ++team_id) {
-                auto team_info = ObserverMatchData::GetTeamInfo(team_id);
+            for (const auto& [team_id, team_agents] : teams) {
+                if (team_id == 0) continue;
+                
                 long damage = ObserverMatchData::GetTeamLordDamage(team_id);
                 
-                std::string team_name = obs_plugin.WStringToString(team_info.guild_name);
-                if (team_name.empty()) {
-                    team_name = "Team " + std::to_string(team_id);
+                std::string team_name = "Team " + std::to_string(team_id);
+                std::string guild_tag = "";
+                
+                std::map<uint16_t, int> guild_counts;
+                for(const auto& agent : team_agents) {
+                    if (agent.type == AgentType::PLAYER && agent.guild_id != 0) {
+                        guild_counts[agent.guild_id]++;
+                    }
                 }
-                  std::string guild_tag = obs_plugin.WStringToString(team_info.guild_tag);
+                
+                uint16_t most_common_guild_id = 0;
+                int highest_count = 0;
+                for (const auto& [guild_id, count] : guild_counts) {
+                    if (count > highest_count) {
+                        highest_count = count;
+                        most_common_guild_id = guild_id;
+                    }
+                }
+                
+                if (most_common_guild_id != 0) {
+                    auto it = guilds_copy.find(most_common_guild_id);
+                    if (it != guilds_copy.end()) {
+                        team_name = obs_plugin.WStringToString(it->second.name);
+                        guild_tag = obs_plugin.WStringToString(it->second.tag);
+                    }
+                }
                 
                 DrawTeamDamageRow(team_name, guild_tag, damage, GetTeamColor(team_id));
             }
             
             ImGui::EndTable();
-        }
-
+        }        
         ImGui::Spacing();
         ImGui::Separator();
         
@@ -54,7 +120,11 @@ void LordDamageWindow::Draw(ObserverPlugin& obs_plugin, bool& is_visible) {
         }
         
         ImGui::SameLine();
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Observer Mode Active");
+        if (obs_plugin.match_handler && obs_plugin.match_handler->IsObserving()) {
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Observer Mode Active");
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Observer Mode Ended");
+        }
 
         DrawInfoSection();
     }
