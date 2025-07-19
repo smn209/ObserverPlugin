@@ -1,13 +1,21 @@
 #include "ObserverStoC.h"
 #include "ObserverPlugin.h"
-#include "ObserverMatch.h" 
+#include "ObserverMatch.h"
+#include "ObserverMatchData.h"
+#include "ObserverPackets.h"
+#include "ObserverPackets.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/ChatMgr.h>
 #include <GWCA/Managers/StoCMgr.h>
-#include <GWCA/Managers/MapMgr.h> 
-#include <cstdio> 
-#include <string> 
+#include <GWCA/Managers/MapMgr.h>
+#include <GWCA/Managers/AgentMgr.h>
+#include <GWCA/Managers/SkillbarMgr.h>
+#include <GWCA/GameEntities/Agent.h>
+#include <GWCA/GameEntities/Skill.h>
+#include <cstdio>
+#include <string>
+#include <cmath>
 
 // define markers for categorization (declarations are in ObserverStoC.h)
 const wchar_t* MARKER_SKILL_EVENT = L"[SKL] ";
@@ -69,6 +77,7 @@ void ObserverStoC::RegisterCallbacks() {
             const uint32_t value = packet->value;
             constexpr bool no_target = false; // this packet type always has a target
             handleGenericPacket(value_id, caster_id, target_id, value, no_target);
+            handleValueTargetPacket(const_cast<GW::Packet::StoC::GenericValueTarget*>(packet));
         }
     );
 
@@ -134,7 +143,7 @@ void ObserverStoC::RegisterCallbacks() {
         &JumboMessage_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::JumboMessage* packet) -> void {
             if (!owner) return; // Only check if owner exists
             handleJumboMessage(packet);
-        });
+        });    // Note: OpposingPartyGuild packet no longer used - team detection now handled via agent analysis like MatchCompositions
 }
 
 void ObserverStoC::RemoveCallbacks() {
@@ -145,6 +154,7 @@ void ObserverStoC::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericFloat>(&GenericFloat_Entry);
     GW::StoC::RemoveCallback(GAME_SMSG_AGENT_MOVE_TO_POINT, &AgentMovement_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::JumboMessage>(&JumboMessage_Entry);
+
 
     cleanupAgentActions(); // clean up map pointers before clearing the map itself
 }
@@ -448,6 +458,7 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
 
     // map gwca damage type id to a simple integer if needed, or just log the raw id.
     // using raw id for simplicity: 1=normal, 2=crit, 3=armorignoring
+    handleDamagePacket(caster_id, target_id, value, damage_type);
 
     wchar_t message_buffer[128];
     // format: damage;caster_id;target_id;value;damage_type_id
@@ -549,3 +560,59 @@ void ObserverStoC::handleJumboMessage(const GW::Packet::StoC::JumboMessage* pack
         GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, message_buffer);
     }
 }
+
+void ObserverStoC::handleDamagePacket(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type) {
+    if (!GW::Map::GetIsObserving()) {
+        return;
+    }
+
+    switch (damage_type) {
+        case GW::Packet::StoC::GenericValueID::damage:
+        case GW::Packet::StoC::GenericValueID::critical:
+        case GW::Packet::StoC::GenericValueID::armorignoring:
+            break;
+        default:
+            return;
+    }
+
+    GW::Agent* target = GW::Agents::GetAgentByID(target_id);
+    GW::Agent* cause = GW::Agents::GetAgentByID(caster_id);
+    if (target && cause) {
+        GW::AgentLiving* target_living = target->GetAsAgentLiving();
+        GW::AgentLiving* cause_living = cause->GetAsAgentLiving();
+        if (target_living && cause_living && value < 0) {
+            if (!(target_living->player_number == 170 || target_living->player_number == 170) ||
+                !(target_living->team_id == 1 || target_living->team_id == 2)) {
+                return;
+            }
+
+            uint32_t attacking_team = target_living->team_id == 1 ? 2 : 1;
+            long damage = static_cast<long>(std::round(-value * (target_living->max_hp > 0 ? target_living->max_hp : 1680)));
+            ObserverMatchData::AddTeamLordDamage(attacking_team, damage);
+        }
+    }
+}
+
+void ObserverStoC::handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget* packet) {
+    if (!GW::Map::GetIsObserving()) {
+        return;
+    }
+
+    GW::Agent* target = GW::Agents::GetAgentByID(packet->caster);
+    if (target) {
+        GW::AgentLiving* target_living = target->GetAsAgentLiving();
+        if (target_living &&
+            (target_living->player_number == 170 || target_living->player_number == 170) &&
+            (target_living->team_id == 1 || target_living->team_id == 2)) {
+            
+            GW::Constants::SkillID skill = static_cast<GW::Constants::SkillID>(packet->value);
+            GW::Skill* skill_data = GW::SkillbarMgr::GetSkillConstantData(skill);
+            if (skill_data && (skill_data->type == GW::Constants::SkillType::Enchantment || 
+                              skill_data->type == GW::Constants::SkillType::WeaponSpell)) {
+                uint32_t team_id = target_living->team_id;
+                ObserverMatchData::AddTeamLordDamage(team_id, -50L);
+            }
+        }
+    }
+}
+

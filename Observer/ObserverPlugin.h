@@ -25,6 +25,7 @@
 #include "Debug/AvailableMatchesWindow.h"
 #include "Debug/StoCLogWindow.h"
 #include "Windows/MatchCompositionsWindow.h"
+#include "Windows/LordDamageWindow.h"
 
 class MatchCompositionsSettingsWindow;
 
@@ -117,6 +118,7 @@ public:
     // match Details Settings Window toggle
     bool show_match_compositions_settings_window = false;
 
+    bool show_lord_damage_window = false;
     void GenerateDefaultFolderName();
 
     // public helper functions for use by other classes in the plugin
@@ -131,5 +133,6 @@ private:
     AvailableMatchesWindow available_matches_window; 
     StoCLogWindow stoc_log_window;                 
     MatchCompositionsWindow match_compositions_window_;
-    MatchCompositionsSettingsWindow* match_compositions_settings_window_ = nullptr; 
+    LordDamageWindow lord_damage_window_;
+    MatchCompositionsSettingsWindow* match_compositions_settings_window_ = nullptr;
 };

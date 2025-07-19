@@ -2,6 +2,7 @@
 
 #include <GWCA/Utilities/Hook.h>
 #include <GWCA/Packets/StoC.h>
+#include "ObserverPackets.h"
 #include <cstdint>
 #include <unordered_map>
 
@@ -49,6 +50,7 @@ private:
     GW::HookEntry GenericFloat_Entry;
     GW::HookEntry AgentMovement_Entry;
     GW::HookEntry JumboMessage_Entry;
+    GW::HookEntry OpposingPartyGuild_Entry;
     
     // common handlers dispatch generic packet data based on value_id
     void handleGenericPacket(uint32_t value_id, uint32_t caster_id, uint32_t target_id, uint32_t value, bool no_target);
@@ -70,6 +72,8 @@ private:
     void handleKnockdown(uint32_t cause_id, uint32_t target_id);
     void handleAgentMovement(uint32_t agent_id, float x, float y, uint16_t plane);
     void handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet);
+    void handleDamagePacket(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type);
+    void handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget* packet);
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,
