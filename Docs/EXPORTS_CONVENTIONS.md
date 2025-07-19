@@ -160,15 +160,16 @@ The following sections detail events captured by hooking into specific Server-to
 
 ## Jumbo Messages (StoC, `jumbo_messages.txt`)
 
-These are server-wide announcements that appear in the center of the screen during matches.
+These are server-wide announcements that appear in the center of the screen during matches. The format includes timestamp, message content, and party information.
 
-| Message Type                    | Description                                           | Format                                        | Example                                    |
+| Message Type (ID)               | Description                                           | Format                                        | Example                                    |
 | :------------------------------ | :---------------------------------------------------- | :-------------------------------------------- | :----------------------------------------- |
-| `BASE_UNDER_ATTACK`             | Base under attack announcement.                       | `[JMB] {message} ({party_id})`                | `[00:45.200] [JMB] Base under attack! (1)` |
-| `GUILD_LORD_UNDER_ATTACK`       | Guild Lord under attack announcement.                 | `[JMB] {message} ({party_id})`                | `[01:30.800] [JMB] Guild Lord under attack! (2)` |
-| `CAPTURED_SHRINE`               | Shrine captured announcement.                         | `[JMB] {message} ({party_id})`                | `[02:15.400] [JMB] Shrine captured! (1)`  |
-| `CAPTURED_TOWER`                | Tower captured announcement.                          | `[JMB] {message} ({party_id})`                | `[03:00.600] [JMB] Tower captured! (2)`   |
-| `PARTY_DEFEATED`                | Party defeated announcement.                          | `[JMB] {message} ({party_id})`                | `[04:30.200] [JMB] Party defeated! (1)`   |
-| `MORALE_BOOST`                  | Morale boost announcement.                            | `[JMB] {message} ({party_id})`                | `[05:45.800] [JMB] Morale boost! (2)`     |
-| `VICTORY`                       | Victory announcement.                                 | `[JMB] {message} ({party_id})`                | `[12:30.000] [JMB] Victory! (1)`          |
-| `FLAWLESS_VICTORY`              | Flawless victory announcement.                        | `[JMB] {message} ({party_id})`                | `[08:15.400] [JMB] Flawless Victory! (2)` |
+| `BASE_UNDER_ATTACK` (0)         | Base under attack announcement.                       | `[JMB] {message} ({party_value})`             | `[00:45.200] [JMB] Base under attack! (1635021873)` |
+| `GUILD_LORD_UNDER_ATTACK` (1)   | Guild Lord under attack announcement.                 | `[JMB] {message} ({party_value})`             | `[01:30.800] [JMB] Guild Lord under attack! (1635021874)` |
+| `CAPTURED_SHRINE` (3)           | Shrine captured announcement.                         | `[JMB] {message} ({party_value})`             | `[02:15.400] [JMB] Shrine captured! (1635021873)`  |
+| `CAPTURED_TOWER` (5)            | Tower captured announcement.                          | `[JMB] {message} ({party_value})`             | `[03:00.600] [JMB] Tower captured! (1635021874)`   |
+| `PARTY_DEFEATED` (6)            | Party defeated announcement (3-way HA matches).       | `[JMB] {message} ({party_value})`             | `[04:30.200] [JMB] Party defeated! (6579558)`   |
+| `MORALE_BOOST` (9)              | Morale boost announcement.                            | `[JMB] {message} ({party_value})`             | `[05:45.800] [JMB] Morale boost! (1635021874)`     |
+| `VICTORY` (16)                  | Victory announcement.                                 | `[JMB] {message} ({party_value})`             | `[12:30.000] [JMB] Victory! (1635021873)`          |
+| `FLAWLESS_VICTORY` (17)         | Flawless victory announcement.                        | `[JMB] {message} ({party_value})`             | `[08:15.400] [JMB] Flawless Victory! (1635021874)` |
+
