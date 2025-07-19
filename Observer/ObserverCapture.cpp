@@ -144,6 +144,7 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
               - combat_events.txt.gz
               - agent_events.txt.gz
               - jumbo_messages.txt.gz
+              - lord_events.txt.gz
               - unknown_events.txt.gz
     */
     if (match_log_entries.empty()) {
@@ -168,6 +169,7 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
         category_buffers[L"combat"] = std::wstringstream();
         category_buffers[L"agent"] = std::wstringstream();
         category_buffers[L"jumbo"] = std::wstringstream();
+        category_buffers[L"lord"] = std::wstringstream();
         category_buffers[L"unknown"] = std::wstringstream();
 
         for (const auto& entry : match_log_entries) {
@@ -198,6 +200,9 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
             } else if (data.rfind(MARKER_JUMBO_EVENT, 0) == 0) {
                  category_key = L"jumbo";
                  message_content = data.substr(MARKER_JUMBO_EVENT_LEN);
+            } else if (data.rfind(MARKER_LORD_EVENT, 0) == 0) {
+                 category_key = L"lord";
+                 message_content = data.substr(MARKER_LORD_EVENT_LEN);
             } else {
                  // for unknown category, keep the full data part including potential unknown marker.
                  message_content = data; // use full data part
@@ -215,6 +220,7 @@ bool ObserverCapture::ExportLogsToFolder(const wchar_t* folder_name) {
         WriteCompressedFile(stoc_dir / "combat_events.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"combat"].str())));
         WriteCompressedFile(stoc_dir / "agent_events.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"agent"].str())));
         WriteCompressedFile(stoc_dir / "jumbo_messages.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"jumbo"].str())));
+        WriteCompressedFile(stoc_dir / "lord_events.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"lord"].str())));
         WriteCompressedFile(stoc_dir / "unknown_events.txt.gz", compress_gzip(WStringToUTF8(category_buffers[L"unknown"].str())));
 
         std::wstring success_msg = L"StoC logs exported and compressed to folder: ";

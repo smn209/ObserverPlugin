@@ -30,6 +30,8 @@ const wchar_t* MARKER_AGENT_EVENT = L"[AGT] ";
 const size_t MARKER_AGENT_EVENT_LEN = wcslen(MARKER_AGENT_EVENT);
 const wchar_t* MARKER_JUMBO_EVENT = L"[JMB] ";
 const size_t MARKER_JUMBO_EVENT_LEN = wcslen(MARKER_JUMBO_EVENT);
+const wchar_t* MARKER_LORD_EVENT = L"[LRD] ";
+const size_t MARKER_LORD_EVENT_LEN = wcslen(MARKER_LORD_EVENT);
 
 // convert JumboMessage value to a simple party index string for logging
 const wchar_t* JumboValueToPartyStr(uint32_t value) {
@@ -474,6 +476,21 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
     }
 }
 
+void ObserverStoC::handleLordDamage(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type, uint32_t attacking_team, long damage, long damage_before, long damage_after) {
+    if (!owner) return;
+
+    wchar_t message_buffer[256];
+    swprintf(message_buffer, 256, L"LORD_DAMAGE;%u;%u;%f;%u;%u;%ld;%ld;%ld", caster_id, target_id, value, damage_type, attacking_team, damage, damage_before, damage_after);
+
+    std::wstring log_entry = MARKER_LORD_EVENT;
+    log_entry += message_buffer;
+    owner->AddLogEntry(log_entry.c_str());
+
+    if (owner->stoc_status && owner->log_lord_damage) {
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, message_buffer);
+    }
+}
+
 void ObserverStoC::handleKnockdown(uint32_t cause_id, uint32_t target_id) {
     if (!owner) return;
 
@@ -588,7 +605,10 @@ void ObserverStoC::handleDamagePacket(uint32_t caster_id, uint32_t target_id, fl
 
             uint32_t attacking_team = target_living->team_id == 1 ? 2 : 1;
             long damage = static_cast<long>(std::round(-value * (target_living->max_hp > 0 ? target_living->max_hp : 1680)));
+            long damage_before = ObserverMatchData::GetTeamLordDamage(attacking_team);
             ObserverMatchData::AddTeamLordDamage(attacking_team, damage);
+            long damage_after = ObserverMatchData::GetTeamLordDamage(attacking_team);
+            handleLordDamage(caster_id, target_id, value, damage_type, attacking_team, damage, damage_before, damage_after);
         }
     }
 }

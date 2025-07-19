@@ -85,6 +85,7 @@ public:
     bool log_attack_skill_finishes = true;
     bool log_basic_attack_finishes = true;
     bool log_damage = false;
+    bool log_lord_damage = true;
     bool log_knockdowns = true;
     bool log_movement = false;
     bool log_jumbo_base_under_attack = true;

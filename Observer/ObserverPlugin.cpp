@@ -141,6 +141,7 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_interrupts);
     PLUGIN_LOAD_BOOL(log_instant_skills);
     PLUGIN_LOAD_BOOL(log_damage);
+    PLUGIN_LOAD_BOOL(log_lord_damage);
     PLUGIN_LOAD_BOOL(log_knockdowns);
     PLUGIN_LOAD_BOOL(log_movement);
 
@@ -199,6 +200,7 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_interrupts);
     PLUGIN_SAVE_BOOL(log_instant_skills);
     PLUGIN_SAVE_BOOL(log_damage);
+    PLUGIN_SAVE_BOOL(log_lord_damage);
     PLUGIN_SAVE_BOOL(log_knockdowns);
     PLUGIN_SAVE_BOOL(log_movement);
 

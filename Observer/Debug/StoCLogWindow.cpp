@@ -56,6 +56,10 @@ void StoCLogWindow::Draw(ObserverPlugin& plugin, bool& is_visible)
                 AddLogCheckbox("Movement", &plugin.log_movement, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentMovement\nMarker: [AGT]\nFile: agent_events.txt");
                 ImGui::TreePop();
             }
+            if (ImGui::TreeNode("Lord Events")) {
+                AddLogCheckbox("Lord Damage", &plugin.log_lord_damage, "Chat Log Toggle\nHandler: ObserverStoC::handleLordDamage\nMarker: [LRD]\nFile: lord_events.txt");
+                ImGui::TreePop();
+            }
             if (ImGui::TreeNode("Jumbo Messages")) {
                 AddLogCheckbox("Base Under Attack##Jumbo", &plugin.log_jumbo_base_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 0\nMarker: [JMB]\nFile: jumbo_messages.txt");
                 AddLogCheckbox("Guild Lord Under Attack##Jumbo", &plugin.log_jumbo_guild_lord_under_attack, "Chat Log Toggle\nHandler: ObserverStoC::handleJumboMessage\nType: 1\nMarker: [JMB]\nFile: jumbo_messages.txt");
