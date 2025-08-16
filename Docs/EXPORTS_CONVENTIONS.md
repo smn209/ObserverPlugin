@@ -118,4 +118,58 @@ The following sections detail events captured by hooking into specific Server-to
 | Event Identifier    | Description                                                                           | Format                                          | Example                                  |
 | :------------------ | :------------------------------------------------------------------------------------ | :---------------------------------------------- | :--------------------------------------- |
 | `ATTACK_STARTED`    | Basic attack started (ValueID `attack_started`).                                      | `ATTACK_STARTED;caster_id;target_id`            | `[00:15.050] ATTACK_STARTED;11;22`       |
-| `ATTACK_FINISHED`   | Basic attack finished (ValueID `melee_attack_finished`). `skill_id`
+| `ATTACK_FINISHED`   | Basic attack finished (ValueID `melee_attack_finished`).                               | `ATTACK_FINISHED;caster_id;skill_id;target_id`  | `[00:16.200] ATTACK_FINISHED;11;0;22`     |
+| `ATTACK_STOPPED`    | Basic attack stopped/cancelled (ValueID `attack_stopped`).                             | `ATTACK_STOPPED;caster_id;skill_id;target_id`   | `[00:17.100] ATTACK_STOPPED;11;0;22`      |
+
+---
+
+## Combat Events (StoC, `combat_events.txt`)
+
+| Event Identifier | Description                                                                        | Format                                        | Example                                     |
+| :--------------- | :--------------------------------------------------------------------------------- | :-------------------------------------------- | :------------------------------------------ |
+| `DAMAGE`         | Damage dealt between agents (ValueID `damage`, `critical`, `armorignoring`).      | `DAMAGE;caster_id;target_id;value;damage_type`| `[00:20.150] DAMAGE;34;56;-120.500000;1`   |
+| `KNOCKED_DOWN`   | Agent knocked down (ValueID `knocked_down`).                                       | `KNOCKED_DOWN;target_id;cause_id`             | `[00:22.800] KNOCKED_DOWN;78;90`           |
+| `INTERRUPTED`    | Agent interrupted (ValueID `interrupted`).                                         | `INTERRUPTED;caster_id;skill_id;target_id`    | `[00:25.300] INTERRUPTED;45;123;67`        |
+
+---
+
+## Lord Events (StoC, `lord_events.txt`)
+
+| Event Identifier | Description                                                                        | Format                                                     | Example                                           |
+| :--------------- | :--------------------------------------------------------------------------------- | :--------------------------------------------------------- | :------------------------------------------------ |
+| `LORD_DAMAGE`    | Damage dealt specifically to Guild Lords (player_number == 170).                  | `LORD_DAMAGE;caster_id;target_id;value;damage_type;attacking_team;damage;damage_before;damage_after` | `[00:30.750] LORD_DAMAGE;123;456;-85.250000;1;2;142;1250;1392` |
+
+**Notes:**
+- Only damage dealt to Guild Lords (agents with `player_number == 170` and `team_id == 1` or `2`) is logged.
+- `attacking_team` represents the team dealing damage (opposite of the lord's team: 1=Blue, 2=Red).
+- `damage_type`: 1=normal damage, 2=critical damage, 3=armor-ignoring damage.
+- `damage`: Calculated damage value (`-value * max_hp`, rounded to long).
+- `damage_before`: Total lord damage for attacking team before this hit.
+- `damage_after`: Total lord damage for attacking team after this hit.
+- This data is also used to update the Lord Damage Counter window via `AddTeamLordDamage()`.
+
+---
+
+## Agent Movement Events (StoC, `agent_events.txt`)
+
+| Event Identifier                | Description                                           | Format                                                             | Example                                                         |
+| :------------------------------ | :---------------------------------------------------- | :----------------------------------------------------------------- | :-------------------------------------------------------------- |
+| `GAME_SMSG_AGENT_MOVE_TO_POINT` | Agent started moving to a new point (Packet 0x29).    | `GAME_SMSG_AGENT_MOVE_TO_POINT;agent_id;x_coord;y_coord;plane`     | `[00:01.503] GAME_SMSG_AGENT_MOVE_TO_POINT;45;7984.00;3083.33;14` |
+
+---
+
+## Jumbo Messages (StoC, `jumbo_messages.txt`)
+
+These are server-wide announcements that appear in the center of the screen during matches. The format includes timestamp, message content, and party information.
+
+| Message Type (ID)               | Description                                           | Format                                        | Example                                    |
+| :------------------------------ | :---------------------------------------------------- | :-------------------------------------------- | :----------------------------------------- |
+| `BASE_UNDER_ATTACK` (0)         | Base under attack announcement.                       | `[JMB] {message} ({party_value})`             | `[00:45.200] [JMB] Base under attack! (1635021873)` |
+| `GUILD_LORD_UNDER_ATTACK` (1)   | Guild Lord under attack announcement.                 | `[JMB] {message} ({party_value})`             | `[01:30.800] [JMB] Guild Lord under attack! (1635021874)` |
+| `CAPTURED_SHRINE` (3)           | Shrine captured announcement.                         | `[JMB] {message} ({party_value})`             | `[02:15.400] [JMB] Shrine captured! (1635021873)`  |
+| `CAPTURED_TOWER` (5)            | Tower captured announcement.                          | `[JMB] {message} ({party_value})`             | `[03:00.600] [JMB] Tower captured! (1635021874)`   |
+| `PARTY_DEFEATED` (6)            | Party defeated announcement (3-way HA matches).       | `[JMB] {message} ({party_value})`             | `[04:30.200] [JMB] Party defeated! (6579558)`   |
+| `MORALE_BOOST` (9)              | Morale boost announcement.                            | `[JMB] {message} ({party_value})`             | `[05:45.800] [JMB] Morale boost! (1635021874)`     |
+| `VICTORY` (16)                  | Victory announcement.                                 | `[JMB] {message} ({party_value})`             | `[12:30.000] [JMB] Victory! (1635021873)`          |
+| `FLAWLESS_VICTORY` (17)         | Flawless victory announcement.                        | `[JMB] {message} ({party_value})`             | `[08:15.400] [JMB] Flawless Victory! (1635021874)` |
+

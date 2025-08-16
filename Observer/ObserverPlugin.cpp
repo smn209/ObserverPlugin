@@ -55,7 +55,8 @@ ObserverPlugin::ObserverPlugin() :
     obs_show_cape_design(true),
     auto_reset_name_on_match_end(true),
     show_match_compositions_window(false),
-    show_match_compositions_settings_window(false) 
+    show_match_compositions_settings_window(false),
+    show_lord_damage_window(false)
 {
     stoc_handler = new ObserverStoC(this);
     match_handler = new ObserverMatch(stoc_handler);
@@ -119,8 +120,9 @@ ObserverPlugin::~ObserverPlugin()
 }
 
 void ObserverPlugin::LoadSettings(const wchar_t* folder)
-{
-    ToolboxUIPlugin::LoadSettings(folder);
+{    ToolboxUIPlugin::LoadSettings(folder);
+    
+#ifdef _DEBUG
     PLUGIN_LOAD_BOOL(show_capture_status_window);
     PLUGIN_LOAD_BOOL(show_live_party_info_window);
     PLUGIN_LOAD_BOOL(show_live_guild_info_window);
@@ -139,6 +141,7 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_interrupts);
     PLUGIN_LOAD_BOOL(log_instant_skills);
     PLUGIN_LOAD_BOOL(log_damage);
+    PLUGIN_LOAD_BOOL(log_lord_damage);
     PLUGIN_LOAD_BOOL(log_knockdowns);
     PLUGIN_LOAD_BOOL(log_movement);
 
@@ -152,9 +155,6 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_jumbo_flawless_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_unknown);
     
-    PLUGIN_LOAD_BOOL(auto_export_on_match_end);
-    PLUGIN_LOAD_BOOL(auto_reset_name_on_match_end);
-
     PLUGIN_LOAD_BOOL(obs_show_match_ids);
     PLUGIN_LOAD_BOOL(obs_show_map_id);
     PLUGIN_LOAD_BOOL(obs_show_age);
@@ -168,13 +168,20 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(obs_show_team_unknowns);
     PLUGIN_LOAD_BOOL(obs_show_cape_colors);
     PLUGIN_LOAD_BOOL(obs_show_cape_design);
+#endif
+    
+    PLUGIN_LOAD_BOOL(auto_export_on_match_end);
+    PLUGIN_LOAD_BOOL(auto_reset_name_on_match_end);
     PLUGIN_LOAD_BOOL(show_match_compositions_window);
     PLUGIN_LOAD_BOOL(show_match_compositions_settings_window);
+    PLUGIN_LOAD_BOOL(show_lord_damage_window);
 }
 
 void ObserverPlugin::SaveSettings(const wchar_t* folder)
 {
     ToolboxUIPlugin::SaveSettings(folder);
+    
+#ifdef _DEBUG
     PLUGIN_SAVE_BOOL(show_capture_status_window);
     PLUGIN_SAVE_BOOL(show_live_party_info_window);
     PLUGIN_SAVE_BOOL(show_live_guild_info_window);
@@ -193,6 +200,7 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_interrupts);
     PLUGIN_SAVE_BOOL(log_instant_skills);
     PLUGIN_SAVE_BOOL(log_damage);
+    PLUGIN_SAVE_BOOL(log_lord_damage);
     PLUGIN_SAVE_BOOL(log_knockdowns);
     PLUGIN_SAVE_BOOL(log_movement);
 
@@ -206,9 +214,6 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_jumbo_flawless_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_unknown);
     
-    PLUGIN_SAVE_BOOL(auto_export_on_match_end);
-    PLUGIN_SAVE_BOOL(auto_reset_name_on_match_end);
-
     PLUGIN_SAVE_BOOL(obs_show_match_ids);
     PLUGIN_SAVE_BOOL(obs_show_map_id);
     PLUGIN_SAVE_BOOL(obs_show_age);
@@ -222,8 +227,13 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(obs_show_team_unknowns);
     PLUGIN_SAVE_BOOL(obs_show_cape_colors);
     PLUGIN_SAVE_BOOL(obs_show_cape_design);
+#endif
+    
+    PLUGIN_SAVE_BOOL(auto_export_on_match_end);
+    PLUGIN_SAVE_BOOL(auto_reset_name_on_match_end);
     PLUGIN_SAVE_BOOL(show_match_compositions_window);
     PLUGIN_SAVE_BOOL(show_match_compositions_settings_window);
+    PLUGIN_SAVE_BOOL(show_lord_damage_window);
 }
 
 // draws the generic UI settings in the main settings panel
@@ -369,12 +379,14 @@ void ObserverPlugin::Draw(
              if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the match compositions window (Teams, Players, Skills).");
              ImGui::Checkbox("Match Compositions Settings", &show_match_compositions_settings_window);
              if (ImGui::IsItemHovered()) ImGui::SetTooltip("Opens settings for the Match Compositions window.");
+             ImGui::Checkbox("Lord Damage Counter", &show_lord_damage_window);
+             if (ImGui::IsItemHovered()) ImGui::SetTooltip("Shows the Lord Damage counter for GvG matches.");
              ImGui::TreePop();
         }
         ImGui::Separator();
-        ImGui::Spacing();
-
+        ImGui::Spacing();        
         // --- Debug Windows Toggles --- 
+#ifdef _DEBUG
         if (ImGui::TreeNode("Debug Windows")) {
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f));
             ImGui::TextWrapped("This section provides access to various windows displaying detailed real-time information useful for debugging the observer plugin, understanding game state, or analyzing captured match data.");
@@ -397,14 +409,15 @@ void ObserverPlugin::Draw(
         }
         ImGui::Separator();
         ImGui::Spacing();
+#endif
 
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.6f, 0.6f, 0.6f, 1.0f)); 
         ImGui::TextWrapped("Note: Captured match data (StoC events & Agent states) remains in memory after observer mode ends. You can still export the previous match using the 'Export' button above. Data will be cleared automatically when a new observer session begins.");
         ImGui::PopStyleColor();
-        
-    }
+          }
     ImGui::End();
 
+#ifdef _DEBUG
     if (show_capture_status_window) {
         capture_status_window.Draw(*this, show_capture_status_window);
     }
@@ -420,6 +433,7 @@ void ObserverPlugin::Draw(
     if (show_stoc_log_window) {
         stoc_log_window.Draw(*this, show_stoc_log_window);
     }
+#endif
 
     if (show_match_compositions_settings_window && match_compositions_settings_window_) {
         match_compositions_settings_window_->Draw(*this, show_match_compositions_settings_window);
@@ -427,6 +441,10 @@ void ObserverPlugin::Draw(
 
     if (show_match_compositions_window) {
         match_compositions_window_.Draw(*this, show_match_compositions_window); 
+    }
+
+    if (show_lord_damage_window) {
+        lord_damage_window_.Draw(*this, show_lord_damage_window);
     }
 }
 

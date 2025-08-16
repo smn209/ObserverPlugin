@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <string>
+#include <map>
+#include <mutex>
 
 #include <GWCA/GameContainers/Array.h>
 #include <GWCA/GameEntities/Guild.h>
@@ -28,9 +30,7 @@ namespace ObserverData {
         uint32_t count;
         TeamDetails team[2];
         wchar_t* team1_name_dup;
-        uint32_t h007C[10];
-    };
-
+        uint32_t h007C[10];    };
 
     std::string SafeWcharToString(const wchar_t* wstr);
 
@@ -44,5 +44,18 @@ namespace ObserverData {
 
     const char* TeamIdToString(uint32_t team_id);
 
+} // namespace ObserverData
 
-} 
+namespace ObserverMatchData {
+
+    struct LordDamageData {
+        std::map<uint32_t, long> team_damage;
+        mutable std::mutex mutex;
+    };
+
+    void InitializeLordDamage();
+    void AddTeamLordDamage(uint32_t team_id, long damage);
+    void ResetLordDamage();
+    long GetTeamLordDamage(uint32_t team_id);
+
+} // namespace ObserverMatchData
