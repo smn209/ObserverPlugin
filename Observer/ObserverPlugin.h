@@ -97,6 +97,7 @@ public:
     bool log_jumbo_victory = true;
     bool log_jumbo_flawless_victory = true;
     bool log_jumbo_unknown = false;
+    bool log_agent_state_updates = true;
 
     // Available Matches display settings (used by Available Matches section in debug window)
     bool obs_show_match_ids = true;

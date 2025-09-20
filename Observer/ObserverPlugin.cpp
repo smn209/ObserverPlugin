@@ -154,6 +154,7 @@ void ObserverPlugin::LoadSettings(const wchar_t* folder)
     PLUGIN_LOAD_BOOL(log_jumbo_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_flawless_victory);
     PLUGIN_LOAD_BOOL(log_jumbo_unknown);
+    PLUGIN_LOAD_BOOL(log_agent_state_updates);
     
     PLUGIN_LOAD_BOOL(obs_show_match_ids);
     PLUGIN_LOAD_BOOL(obs_show_map_id);
@@ -213,6 +214,7 @@ void ObserverPlugin::SaveSettings(const wchar_t* folder)
     PLUGIN_SAVE_BOOL(log_jumbo_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_flawless_victory);
     PLUGIN_SAVE_BOOL(log_jumbo_unknown);
+    PLUGIN_SAVE_BOOL(log_agent_state_updates);
     
     PLUGIN_SAVE_BOOL(obs_show_match_ids);
     PLUGIN_SAVE_BOOL(obs_show_map_id);

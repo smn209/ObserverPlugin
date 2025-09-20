@@ -5,6 +5,7 @@
 #include "ObserverPackets.h"
 #include <cstdint>
 #include <unordered_map>
+#include <string>
 
 class ObserverPlugin;
 
@@ -22,6 +23,8 @@ extern const wchar_t* MARKER_JUMBO_EVENT;
 extern const size_t MARKER_JUMBO_EVENT_LEN;
 extern const wchar_t* MARKER_LORD_EVENT;
 extern const size_t MARKER_LORD_EVENT_LEN;
+extern const wchar_t* MARKER_AGENT_STATE_EVENT;
+extern const size_t MARKER_AGENT_STATE_EVENT_LEN;
 
 // struct to store active action details (skill and target)
 // similar concept to ObserverModule::TargetAction but simplified for logging needs
@@ -42,8 +45,8 @@ public:
 private:
     ObserverPlugin* owner; // pointer back to the main plugin instance
     
-    // map to track the currently active action (skill/target) for each agent
     std::unordered_map<uint32_t, ActiveActionInfo*> agent_active_action;
+    std::unordered_map<uint32_t, uint32_t> agent_previous_states;
     
     // hook entries for packet callbacks
     GW::HookEntry GenericValueTarget_Entry;
@@ -53,6 +56,7 @@ private:
     GW::HookEntry AgentMovement_Entry;
     GW::HookEntry JumboMessage_Entry;
     GW::HookEntry OpposingPartyGuild_Entry;
+    GW::HookEntry AgentState_Entry;
     
     // common handlers dispatch generic packet data based on value_id
     void handleGenericPacket(uint32_t value_id, uint32_t caster_id, uint32_t target_id, uint32_t value, bool no_target);
@@ -77,6 +81,8 @@ private:
     void handleJumboMessage(const GW::Packet::StoC::JumboMessage* packet);
     void handleDamagePacket(uint32_t caster_id, uint32_t target_id, float value, uint32_t damage_type);
     void handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget* packet);
+    void handleAgentState(const GW::Packet::StoC::AgentState* packet);
+    void handleDeathResurrection(uint32_t agent_id, bool is_dead);
 
     // private helper functions for logging and cleanup
     void logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,

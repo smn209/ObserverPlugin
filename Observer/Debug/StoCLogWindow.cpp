@@ -54,6 +54,7 @@ void StoCLogWindow::Draw(ObserverPlugin& plugin, bool& is_visible)
             }
             if (ImGui::TreeNode("Agent Events")) {
                 AddLogCheckbox("Movement", &plugin.log_movement, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentMovement\nMarker: [AGT]\nFile: agent_events.txt");
+                AddLogCheckbox("State Updates", &plugin.log_agent_state_updates, "Chat Log Toggle\nHandler: ObserverStoC::handleAgentState\nMarker: [AST]");
                 ImGui::TreePop();
             }
             if (ImGui::TreeNode("Lord Events")) {

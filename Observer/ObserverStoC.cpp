@@ -3,7 +3,7 @@
 #include "ObserverMatch.h"
 #include "ObserverMatchData.h"
 #include "ObserverPackets.h"
-#include "ObserverPackets.h"
+#include "TextUtils.h"
 
 #include <GWCA/Constants/Constants.h>
 #include <GWCA/Managers/ChatMgr.h>
@@ -32,6 +32,8 @@ const wchar_t* MARKER_JUMBO_EVENT = L"[JMB] ";
 const size_t MARKER_JUMBO_EVENT_LEN = wcslen(MARKER_JUMBO_EVENT);
 const wchar_t* MARKER_LORD_EVENT = L"[LRD] ";
 const size_t MARKER_LORD_EVENT_LEN = wcslen(MARKER_LORD_EVENT);
+const wchar_t* MARKER_AGENT_STATE_EVENT = L"[AST] ";
+const size_t MARKER_AGENT_STATE_EVENT_LEN = wcslen(MARKER_AGENT_STATE_EVENT);
 
 // convert JumboMessage value to a simple party index string for logging
 const wchar_t* JumboValueToPartyStr(uint32_t value) {
@@ -145,6 +147,13 @@ void ObserverStoC::RegisterCallbacks() {
         &JumboMessage_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::JumboMessage* packet) -> void {
             if (!owner) return; // Only check if owner exists
             handleJumboMessage(packet);
+        });
+    
+    // AgentState packet callback
+    GW::StoC::RegisterPacketCallback<GW::Packet::StoC::AgentState>(
+        &AgentState_Entry, [this](const GW::HookStatus*, const GW::Packet::StoC::AgentState* packet) -> void {
+            if (!owner) return; // Only check if owner exists
+            handleAgentState(packet);
         });    // Note: OpposingPartyGuild packet no longer used - team detection now handled via agent analysis like MatchCompositions
 }
 
@@ -156,7 +165,7 @@ void ObserverStoC::RemoveCallbacks() {
     GW::StoC::RemoveCallback<GW::Packet::StoC::GenericFloat>(&GenericFloat_Entry);
     GW::StoC::RemoveCallback(GAME_SMSG_AGENT_MOVE_TO_POINT, &AgentMovement_Entry);
     GW::StoC::RemoveCallback<GW::Packet::StoC::JumboMessage>(&JumboMessage_Entry);
-
+    GW::StoC::RemoveCallback<GW::Packet::StoC::AgentState>(&AgentState_Entry);
 
     cleanupAgentActions(); // clean up map pointers before clearing the map itself
 }
@@ -164,13 +173,13 @@ void ObserverStoC::RemoveCallbacks() {
 // ==================== Private Helper Methods ====================
 
 void ObserverStoC::cleanupAgentActions() {
-    // helper function to iterate through the map and delete allocated action info pointers
     for (auto const& [caster_id, action_info_ptr] : agent_active_action) {
         if (action_info_ptr) {
             delete action_info_ptr;
         }
     }
     agent_active_action.clear();
+    agent_previous_states.clear();
 }
 
 void ObserverStoC::logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,
@@ -635,4 +644,64 @@ void ObserverStoC::handleValueTargetPacket(GW::Packet::StoC::GenericValueTarget*
         }
     }
 }
+
+void ObserverStoC::handleAgentState(const GW::Packet::StoC::AgentState* packet) {
+    if (!owner) return;
+    
+    uint32_t agent_id = packet->agent_id;
+    uint32_t current_state = packet->state;
+    
+    bool is_currently_dead = (current_state & 16) != 0;
+    
+    auto it = agent_previous_states.find(agent_id);
+    if (it != agent_previous_states.end()) {
+        uint32_t previous_state = it->second;
+        bool was_previously_dead = (previous_state & 16) != 0;
+        
+        if (is_currently_dead != was_previously_dead) {
+            handleDeathResurrection(agent_id, is_currently_dead);
+        }
+    }
+    
+    agent_previous_states[agent_id] = current_state;
+    
+    wchar_t message_buffer[128];
+    swprintf(message_buffer, sizeof(message_buffer)/sizeof(wchar_t), L"AGENT_STATE_UPDATE;%u;%u", packet->agent_id, packet->state);
+    
+    std::wstring log_entry = MARKER_AGENT_STATE_EVENT;
+    log_entry += message_buffer;
+    owner->AddLogEntry(log_entry.c_str());
+    
+    if (owner->stoc_status && owner->log_agent_state_updates) {
+        GW::Chat::WriteChat(GW::Chat::CHANNEL_MODERATOR, message_buffer);
+    }
+}
+
+void ObserverStoC::handleDeathResurrection(uint32_t agent_id, bool is_dead) {
+    if (!owner || !owner->match_handler) return;
+    
+    const MatchInfo& match_info = owner->match_handler->GetMatchInfo();
+    const auto agents = match_info.GetAgentsInfoCopy();
+    
+    auto it = agents.find(agent_id);
+    if (it != agents.end()) {
+        const AgentInfo& agent = it->second;
+        const wchar_t* agent_name = ObserverUtils::DecodeAgentName(agent.encoded_name);
+        const wchar_t* status_text = is_dead ? L"is dead" : L"is alive";
+        const wchar_t* team_suffix = (agent.team_id == 1) ? L" (B)" : (agent.team_id == 2) ? L" (R)" : L" (?)";
+        
+        wchar_t message_buffer[256];
+        if (agent_name && agent_name[0] != L'\0' && wcscmp(agent_name, L"<Decoding...>") != 0) {
+            swprintf(message_buffer, sizeof(message_buffer)/sizeof(wchar_t), L"%ls %ls%ls", agent_name, status_text, team_suffix);
+        } else {
+            swprintf(message_buffer, sizeof(message_buffer)/sizeof(wchar_t), L"Agent %u %ls%ls", agent_id, status_text, team_suffix);
+        }
+        
+        std::wstring log_entry = MARKER_AGENT_STATE_EVENT;
+        log_entry += L"DEATH_RESURRECTION;";
+        log_entry += message_buffer;
+        owner->AddLogEntry(log_entry.c_str());
+    }
+}
+
 

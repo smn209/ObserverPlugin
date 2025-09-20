@@ -21,15 +21,14 @@ ObserverCapture::ObserverCapture() {
 }
 
 void ObserverCapture::AddLogEntry(const wchar_t* entry) {
-    uint32_t instance_time_ms = GW::Map::GetInstanceTime();  // get instance time in milliseconds
+    uint32_t instance_time_ms = GW::Map::GetInstanceTime();
     uint32_t total_seconds = instance_time_ms / 1000;
     uint32_t minutes = total_seconds / 60;
     uint32_t seconds = total_seconds % 60;
-    uint32_t milliseconds = instance_time_ms % 1000;
 
-    // format the timestamp as [mm:ss.ms]
+    // format the timestamp as [mm:ss]
     wchar_t timestamp[32];
-    swprintf(timestamp, 32, L"[%02u:%02u.%03u] ", minutes, seconds, milliseconds);
+    swprintf(timestamp, 32, L"[%02u:%02u] ", minutes, seconds);
 
     // add timestamped entry (with its prepended marker) to the log
     std::wstring log_entry = timestamp;
