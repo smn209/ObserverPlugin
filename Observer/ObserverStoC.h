@@ -47,6 +47,7 @@ private:
     
     std::unordered_map<uint32_t, ActiveActionInfo*> agent_active_action;
     std::unordered_map<uint32_t, uint32_t> agent_previous_states;
+    std::unordered_map<uint32_t, uint32_t> agent_last_hit_by;
     
     // hook entries for packet callbacks
     GW::HookEntry GenericValueTarget_Entry;

@@ -206,6 +206,7 @@ void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
         uint32_t existing_crits_dealt = it->second.crits_dealt;
         uint32_t existing_crits_received = it->second.crits_received;
         uint32_t existing_deaths = it->second.deaths;
+        uint32_t existing_kills = it->second.kills;
         it->second = info;
         it->second.used_skill_ids = std::move(existing_skills);
         it->second.total_damage = existing_damage;
@@ -225,6 +226,7 @@ void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
         it->second.crits_dealt = existing_crits_dealt;
         it->second.crits_received = existing_crits_received;
         it->second.deaths = existing_deaths;
+        it->second.kills = existing_kills;
     } else {
         agents_info[info.agent_id] = info;
     }
@@ -592,7 +594,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"cancelled_skills_count\": " << agent.cancelled_skills_count
                                 << ", \"crits_dealt\": " << agent.crits_dealt
                                 << ", \"crits_received\": " << agent.crits_received
-                                << ", \"deaths\": " << agent.deaths;
+                                << ", \"deaths\": " << agent.deaths
+                                << ", \"kills\": " << agent.kills;
 
                         if (!agent.skill_template_code.empty()) {
                             outfile << ", \"skill_template_code\": \"" << agent.skill_template_code << "\"";
@@ -950,6 +953,15 @@ void MatchInfo::IncrementDeaths(uint32_t agent_id) {
     auto it = agents_info.find(agent_id);
     if (it != agents_info.end()) {
         it->second.deaths++;
+    }
+}
+
+void MatchInfo::IncrementKills(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.kills++;
     }
 }
 

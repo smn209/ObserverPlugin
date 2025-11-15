@@ -57,6 +57,7 @@ struct AgentInfo {
     uint32_t crits_dealt = 0;
     uint32_t crits_received = 0;
     uint32_t deaths = 0;
+    uint32_t kills = 0;
 };
 
 struct GuildInfo {
@@ -119,6 +120,7 @@ struct MatchInfo {
     void IncrementCritsDealt(uint32_t agent_id);
     void IncrementCritsReceived(uint32_t agent_id);
     void IncrementDeaths(uint32_t agent_id);
+    void IncrementKills(uint32_t agent_id);
 
     void UpdateGuildInfo(const GuildInfo& info);
     std::map<uint16_t, GuildInfo> GetGuildsInfoCopy() const;

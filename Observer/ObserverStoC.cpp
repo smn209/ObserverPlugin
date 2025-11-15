@@ -180,6 +180,7 @@ void ObserverStoC::cleanupAgentActions() {
     }
     agent_active_action.clear();
     agent_previous_states.clear();
+    agent_last_hit_by.clear();
 }
 
 void ObserverStoC::logActionActivation(uint32_t caster_id, uint32_t target_id, uint32_t skill_id,
@@ -542,6 +543,10 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
                     if (caster_team_id == 1 || caster_team_id == 2) {
                         match_info.AddTeamDamage(caster_team_id, actual_damage);
                     }
+                    
+                    if (target_it != agents.end()) {
+                        agent_last_hit_by[target_id] = caster_id;
+                    }
                 }
                 
                 if (damage_type == GW::Packet::StoC::GenericValueID::critical) {
@@ -782,6 +787,15 @@ void ObserverStoC::handleDeathResurrection(uint32_t agent_id, bool is_dead) {
                     ObserverMatchData::AddTeamKill(2);
                 } else if (agent.team_id == 2) {
                     ObserverMatchData::AddTeamKill(1);
+                }
+                
+                auto last_hit_it = agent_last_hit_by.find(agent_id);
+                if (last_hit_it != agent_last_hit_by.end()) {
+                    uint32_t killer_id = last_hit_it->second;
+                    auto killer_it = agents.find(killer_id);
+                    if (killer_it != agents.end()) {
+                        owner->match_handler->GetMatchInfo().IncrementKills(killer_id);
+                    }
                 }
             }
         }
