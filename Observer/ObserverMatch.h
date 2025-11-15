@@ -41,6 +41,22 @@ struct AgentInfo {
     uint32_t gadget_id = 0;
     std::string skill_template_code;
     long total_damage = 0;
+    uint32_t attacks_started = 0;
+    uint32_t attacks_finished = 0;
+    uint32_t attacks_stopped = 0;
+    uint32_t skills_activated = 0;
+    uint32_t skills_finished = 0;
+    uint32_t skills_stopped = 0;
+    uint32_t attack_skills_activated = 0;
+    uint32_t attack_skills_finished = 0;
+    uint32_t attack_skills_stopped = 0;
+    uint32_t interrupted_count = 0;
+    uint32_t interrupted_skills_count = 0;
+    uint32_t cancelled_attacks_count = 0;
+    uint32_t cancelled_skills_count = 0;
+    uint32_t crits_dealt = 0;
+    uint32_t crits_received = 0;
+    uint32_t deaths = 0;
 };
 
 struct GuildInfo {
@@ -88,6 +104,21 @@ struct MatchInfo {
     void AddPlayerDamage(uint32_t agent_id, long damage);
     void AddTeamDamage(uint32_t team_id, long damage);
     long GetTeamDamage(uint32_t team_id) const;
+    void IncrementAttacksStarted(uint32_t agent_id);
+    void IncrementAttacksFinished(uint32_t agent_id);
+    void IncrementAttacksStopped(uint32_t agent_id);
+    void IncrementSkillsActivated(uint32_t agent_id);
+    void IncrementSkillsFinished(uint32_t agent_id);
+    void IncrementSkillsStopped(uint32_t agent_id);
+    void IncrementAttackSkillsActivated(uint32_t agent_id);
+    void IncrementAttackSkillsFinished(uint32_t agent_id);
+    void IncrementAttackSkillsStopped(uint32_t agent_id);
+    void IncrementInterrupted(uint32_t agent_id, bool is_skill);
+    void IncrementCancelledAttack(uint32_t agent_id);
+    void IncrementCancelledSkill(uint32_t agent_id);
+    void IncrementCritsDealt(uint32_t agent_id);
+    void IncrementCritsReceived(uint32_t agent_id);
+    void IncrementDeaths(uint32_t agent_id);
 
     void UpdateGuildInfo(const GuildInfo& info);
     std::map<uint16_t, GuildInfo> GetGuildsInfoCopy() const;

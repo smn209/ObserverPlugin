@@ -262,9 +262,15 @@ void ObserverStoC::logActionCompletion(uint32_t caster_id, const wchar_t* action
         skill_id = action_info->skill_id;
         target_id = action_info->target_id;
 
-        // clean up the stored action info
-        delete action_info;
-        agent_active_action.erase(it);
+        bool should_cleanup = (wcscmp(action_identifier, L"SKILL_FINISHED") == 0 ||
+                               wcscmp(action_identifier, L"ATTACK_SKILL_FINISHED") == 0 ||
+                               wcscmp(action_identifier, L"ATTACK_FINISHED") == 0 ||
+                               wcscmp(action_identifier, L"INTERRUPTED") == 0);
+        
+        if (should_cleanup) {
+            delete action_info;
+            agent_active_action.erase(it);
+        }
     }
     // note: for stops/interrupts, we proceed even if not found, logging only the caster_id
 
@@ -379,18 +385,29 @@ void ObserverStoC::handleGenericPacket(const uint32_t value_id, const uint32_t c
 void ObserverStoC::handleSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target) {
     if (!owner) return;
     // format: skill_activated;skill_id;caster_id;target_id
+    if (owner->match_handler) {
+        uint32_t actual_caster_id = no_target ? caster_id : target_id;
+        owner->match_handler->GetMatchInfo().IncrementSkillsActivated(actual_caster_id);
+    }
     logActionActivation(caster_id, target_id, skill_id, no_target, L"SKILL_ACTIVATED", MARKER_SKILL_EVENT);
 }
 
 void ObserverStoC::handleSkillFinished(uint32_t caster_id) {
     if (!owner) return;
     // format: skill_finished;caster_id;skill_id;target_id
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementSkillsFinished(caster_id);
+    }
     logActionCompletion(caster_id, L"SKILL_FINISHED", GW::Packet::StoC::GenericValueID::skill_finished, MARKER_SKILL_EVENT);
 }
 
 void ObserverStoC::handleSkillStopped(uint32_t caster_id) {
     if (!owner) return;
     // format: skill_stopped;caster_id
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementSkillsStopped(caster_id);
+        owner->match_handler->GetMatchInfo().IncrementCancelledSkill(caster_id);
+    }
     logActionCompletion(caster_id, L"SKILL_STOPPED", GW::Packet::StoC::GenericValueID::skill_stopped, MARKER_SKILL_EVENT);
 }
 
@@ -398,18 +415,29 @@ void ObserverStoC::handleSkillStopped(uint32_t caster_id) {
 void ObserverStoC::handleAttackSkillActivated(uint32_t caster_id, uint32_t target_id, uint32_t skill_id, bool no_target) {
     if (!owner) return;
     // format: attack_skill_activated;skill_id;caster_id;target_id
+    if (owner->match_handler) {
+        uint32_t actual_caster_id = no_target ? caster_id : target_id;
+        owner->match_handler->GetMatchInfo().IncrementAttackSkillsActivated(actual_caster_id);
+    }
     logActionActivation(caster_id, target_id, skill_id, no_target, L"ATTACK_SKILL_ACTIVATED", MARKER_ATTACK_SKILL_EVENT);
 }
 
 void ObserverStoC::handleAttackSkillFinished(uint32_t caster_id) {
     if (!owner) return;
     // format: attack_skill_finished;caster_id;skill_id;target_id
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementAttackSkillsFinished(caster_id);
+    }
     logActionCompletion(caster_id, L"ATTACK_SKILL_FINISHED", GW::Packet::StoC::GenericValueID::attack_skill_finished, MARKER_ATTACK_SKILL_EVENT);
 }
 
 void ObserverStoC::handleAttackSkillStopped(uint32_t caster_id) {
     if (!owner) return;
     // format: attack_skill_stopped;caster_id
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementAttackSkillsStopped(caster_id);
+        owner->match_handler->GetMatchInfo().IncrementCancelledSkill(caster_id);
+    }
     logActionCompletion(caster_id, L"ATTACK_SKILL_STOPPED", GW::Packet::StoC::GenericValueID::attack_skill_stopped, MARKER_ATTACK_SKILL_EVENT);
 }
 
@@ -442,18 +470,29 @@ void ObserverStoC::handleAttackStarted(uint32_t caster_id, uint32_t target_id, b
     if (!owner) return;
     // format: attack_started;caster_id;target_id
     // use attack_started value_id as a placeholder skill_id to trigger basic attack storage
+    if (owner->match_handler) {
+        uint32_t actual_caster_id = no_target ? caster_id : target_id;
+        owner->match_handler->GetMatchInfo().IncrementAttacksStarted(actual_caster_id);
+    }
     logActionActivation(caster_id, target_id, static_cast<uint32_t>(GW::Packet::StoC::GenericValueID::attack_started), no_target, L"ATTACK_STARTED", MARKER_BASIC_ATTACK_EVENT);
 }
 
 void ObserverStoC::handleAttackFinished(uint32_t caster_id) {
     if (!owner) return;
     // format: attack_finished;caster_id;skill_id;target_id (skill_id will be 0)
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementAttacksFinished(caster_id);
+    }
     logActionCompletion(caster_id, L"ATTACK_FINISHED", GW::Packet::StoC::GenericValueID::melee_attack_finished, MARKER_BASIC_ATTACK_EVENT);
 }
 
 void ObserverStoC::handleAttackStopped(uint32_t caster_id) {
     if (!owner) return;
     // format: attack_stopped;caster_id
+    if (owner->match_handler) {
+        owner->match_handler->GetMatchInfo().IncrementAttacksStopped(caster_id);
+        owner->match_handler->GetMatchInfo().IncrementCancelledAttack(caster_id);
+    }
     logActionCompletion(caster_id, L"ATTACK_STOPPED", GW::Packet::StoC::GenericValueID::attack_stopped, MARKER_BASIC_ATTACK_EVENT);
 }
 
@@ -461,6 +500,14 @@ void ObserverStoC::handleAttackStopped(uint32_t caster_id) {
 void ObserverStoC::handleInterrupted(uint32_t caster_id) {
     if (!owner) return;
     // format: interrupted;caster_id
+    if (owner->match_handler) {
+        bool is_skill = false;
+        auto it = agent_active_action.find(caster_id);
+        if (it != agent_active_action.end() && it->second->skill_id != 0) {
+            is_skill = true;
+        }
+        owner->match_handler->GetMatchInfo().IncrementInterrupted(caster_id, is_skill);
+    }
     logActionCompletion(caster_id, L"INTERRUPTED", GW::Packet::StoC::GenericValueID::interrupted, MARKER_COMBAT_EVENT);
 }
 
@@ -486,6 +533,7 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
                 MatchInfo& match_info = owner->match_handler->GetMatchInfo();
                 const auto agents = match_info.GetAgentsInfoCopy();
                 auto caster_it = agents.find(caster_id);
+                auto target_it = agents.find(target_id);
                 
                 if (caster_it != agents.end()) {
                     match_info.AddPlayerDamage(caster_id, actual_damage);
@@ -493,6 +541,15 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
                     uint32_t caster_team_id = caster_living->team_id;
                     if (caster_team_id == 1 || caster_team_id == 2) {
                         match_info.AddTeamDamage(caster_team_id, actual_damage);
+                    }
+                }
+                
+                if (damage_type == GW::Packet::StoC::GenericValueID::critical) {
+                    if (caster_it != agents.end()) {
+                        match_info.IncrementCritsDealt(caster_id);
+                    }
+                    if (target_it != agents.end()) {
+                        match_info.IncrementCritsReceived(target_id);
                     }
                 }
             }
@@ -718,11 +775,14 @@ void ObserverStoC::handleDeathResurrection(uint32_t agent_id, bool is_dead) {
         const wchar_t* status_text = is_dead ? L"is dead" : L"is alive";
         const wchar_t* team_suffix = (agent.team_id == 1) ? L" (B)" : (agent.team_id == 2) ? L" (R)" : L" (?)";
 
-        if (is_dead && agent.type == AgentType::PLAYER) {
-            if (agent.team_id == 1) {
-                ObserverMatchData::AddTeamKill(2);
-            } else if (agent.team_id == 2) {
-                ObserverMatchData::AddTeamKill(1);
+        if (is_dead) {
+            owner->match_handler->GetMatchInfo().IncrementDeaths(agent_id);
+            if (agent.type == AgentType::PLAYER) {
+                if (agent.team_id == 1) {
+                    ObserverMatchData::AddTeamKill(2);
+                } else if (agent.team_id == 2) {
+                    ObserverMatchData::AddTeamKill(1);
+                }
             }
         }
         

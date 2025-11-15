@@ -182,7 +182,7 @@ void ObserverMatch::SetMatchEndInfo(uint32_t end_time_ms, uint32_t raw_winner_id
 }
 
 void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
-    if (info.agent_id == 0) return; // don't store info for invalid agent IDs
+    if (info.agent_id == 0) return;
 
     std::lock_guard<std::mutex> lock(agents_info_mutex);
     // find the agent in the agents_info map
@@ -190,11 +190,42 @@ void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
     if (it != agents_info.end()) {
         std::vector<uint32_t> existing_skills = it->second.used_skill_ids;
         long existing_damage = it->second.total_damage;
+        uint32_t existing_attacks_started = it->second.attacks_started;
+        uint32_t existing_attacks_finished = it->second.attacks_finished;
+        uint32_t existing_attacks_stopped = it->second.attacks_stopped;
+        uint32_t existing_skills_activated = it->second.skills_activated;
+        uint32_t existing_skills_finished = it->second.skills_finished;
+        uint32_t existing_skills_stopped = it->second.skills_stopped;
+        uint32_t existing_attack_skills_activated = it->second.attack_skills_activated;
+        uint32_t existing_attack_skills_finished = it->second.attack_skills_finished;
+        uint32_t existing_attack_skills_stopped = it->second.attack_skills_stopped;
+        uint32_t existing_interrupted_count = it->second.interrupted_count;
+        uint32_t existing_interrupted_skills_count = it->second.interrupted_skills_count;
+        uint32_t existing_cancelled_attacks_count = it->second.cancelled_attacks_count;
+        uint32_t existing_cancelled_skills_count = it->second.cancelled_skills_count;
+        uint32_t existing_crits_dealt = it->second.crits_dealt;
+        uint32_t existing_crits_received = it->second.crits_received;
+        uint32_t existing_deaths = it->second.deaths;
         it->second = info;
         it->second.used_skill_ids = std::move(existing_skills);
         it->second.total_damage = existing_damage;
+        it->second.attacks_started = existing_attacks_started;
+        it->second.attacks_finished = existing_attacks_finished;
+        it->second.attacks_stopped = existing_attacks_stopped;
+        it->second.skills_activated = existing_skills_activated;
+        it->second.skills_finished = existing_skills_finished;
+        it->second.skills_stopped = existing_skills_stopped;
+        it->second.attack_skills_activated = existing_attack_skills_activated;
+        it->second.attack_skills_finished = existing_attack_skills_finished;
+        it->second.attack_skills_stopped = existing_attack_skills_stopped;
+        it->second.interrupted_count = existing_interrupted_count;
+        it->second.interrupted_skills_count = existing_interrupted_skills_count;
+        it->second.cancelled_attacks_count = existing_cancelled_attacks_count;
+        it->second.cancelled_skills_count = existing_cancelled_skills_count;
+        it->second.crits_dealt = existing_crits_dealt;
+        it->second.crits_received = existing_crits_received;
+        it->second.deaths = existing_deaths;
     } else {
-        // new agent, insert directly
         agents_info[info.agent_id] = info;
     }
 }
@@ -545,7 +576,23 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"model_id\": " << agent.model_id
                                 << ", \"gadget_id\": " << agent.gadget_id
                                 << ", \"encoded_name\": " << decoded_name_json
-                                << ", \"total_damage\": " << agent.total_damage;
+                                << ", \"total_damage\": " << agent.total_damage
+                                << ", \"attacks_started\": " << agent.attacks_started
+                                << ", \"attacks_finished\": " << agent.attacks_finished
+                                << ", \"attacks_stopped\": " << agent.attacks_stopped
+                                << ", \"skills_activated\": " << agent.skills_activated
+                                << ", \"skills_finished\": " << agent.skills_finished
+                                << ", \"skills_stopped\": " << agent.skills_stopped
+                                << ", \"attack_skills_activated\": " << agent.attack_skills_activated
+                                << ", \"attack_skills_finished\": " << agent.attack_skills_finished
+                                << ", \"attack_skills_stopped\": " << agent.attack_skills_stopped
+                                << ", \"interrupted_count\": " << agent.interrupted_count
+                                << ", \"interrupted_skills_count\": " << agent.interrupted_skills_count
+                                << ", \"cancelled_attacks_count\": " << agent.cancelled_attacks_count
+                                << ", \"cancelled_skills_count\": " << agent.cancelled_skills_count
+                                << ", \"crits_dealt\": " << agent.crits_dealt
+                                << ", \"crits_received\": " << agent.crits_received
+                                << ", \"deaths\": " << agent.deaths;
 
                         if (!agent.skill_template_code.empty()) {
                             outfile << ", \"skill_template_code\": \"" << agent.skill_template_code << "\"";
@@ -766,6 +813,144 @@ long MatchInfo::GetTeamDamage(uint32_t team_id) const {
     std::lock_guard<std::mutex> lock(team_damage_mutex);
     auto it = team_damage.find(team_id);
     return (it != team_damage.end()) ? it->second : 0L;
+}
+
+void MatchInfo::IncrementAttacksStarted(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attacks_started++;
+    }
+}
+
+void MatchInfo::IncrementAttacksFinished(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attacks_finished++;
+    }
+}
+
+void MatchInfo::IncrementAttacksStopped(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attacks_stopped++;
+    }
+}
+
+void MatchInfo::IncrementSkillsActivated(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.skills_activated++;
+    }
+}
+
+void MatchInfo::IncrementSkillsFinished(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.skills_finished++;
+    }
+}
+
+void MatchInfo::IncrementSkillsStopped(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.skills_stopped++;
+    }
+}
+
+void MatchInfo::IncrementAttackSkillsActivated(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attack_skills_activated++;
+    }
+}
+
+void MatchInfo::IncrementAttackSkillsFinished(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attack_skills_finished++;
+    }
+}
+
+void MatchInfo::IncrementAttackSkillsStopped(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.attack_skills_stopped++;
+    }
+}
+
+void MatchInfo::IncrementInterrupted(uint32_t agent_id, bool is_skill) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.interrupted_count++;
+        if (is_skill) {
+            it->second.interrupted_skills_count++;
+        }
+    }
+}
+
+void MatchInfo::IncrementCancelledAttack(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.cancelled_attacks_count++;
+    }
+}
+
+void MatchInfo::IncrementCancelledSkill(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.cancelled_skills_count++;
+    }
+}
+
+void MatchInfo::IncrementCritsDealt(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.crits_dealt++;
+    }
+}
+
+void MatchInfo::IncrementCritsReceived(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.crits_received++;
+    }
+}
+
+void MatchInfo::IncrementDeaths(uint32_t agent_id) {
+    if (agent_id == 0) return;
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.deaths++;
+    }
 }
 
 void ObserverMatch::SetOwnerPlugin(ObserverPlugin* plugin) {
