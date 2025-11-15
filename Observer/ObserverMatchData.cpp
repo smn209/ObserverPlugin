@@ -131,4 +131,28 @@ namespace ObserverMatchData {
         return (it != lord_damage_data.team_damage.end()) ? it->second : 0L;
     }
 
+    static TeamKillCountData team_kill_count_data;
+    void InitializeTeamKillCount() {
+        std::lock_guard<std::mutex> lock(team_kill_count_data.mutex);
+        team_kill_count_data.team_kills.clear();
+    }
+
+    void AddTeamKill(uint32_t team_id) {
+        std::lock_guard<std::mutex> lock(team_kill_count_data.mutex);
+        team_kill_count_data.team_kills[team_id] += 1;
+    }
+
+    void ResetTeamKillCount() {
+        std::lock_guard<std::mutex> lock(team_kill_count_data.mutex);
+        for (auto& pair : team_kill_count_data.team_kills) {
+            pair.second = 0;
+        }
+    }
+
+    uint32_t GetTeamKillCount(uint32_t team_id) {
+        std::lock_guard<std::mutex> lock(team_kill_count_data.mutex);
+        auto it = team_kill_count_data.team_kills.find(team_id);
+        return (it != team_kill_count_data.team_kills.end()) ? it->second : 0U;
+    }
+
 }

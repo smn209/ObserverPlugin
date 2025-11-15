@@ -88,6 +88,7 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
 
         // clear StoC/Agent logs if this is a new observer match
         ObserverMatchData::InitializeLordDamage();
+        ObserverMatchData::InitializeTeamKillCount();
         if (owner_plugin) {
             this->ClearLogs();
         }
@@ -119,6 +120,7 @@ void ObserverMatch::HandleInstanceLoadInfo(const GW::HookStatus* /*status*/, con
              current_match_info_.Reset();
              current_match_info_.map_id = packet->map_id;
              ObserverMatchData::InitializeLordDamage();
+             ObserverMatchData::InitializeTeamKillCount();
              if (owner_plugin) {
                 this->ClearLogs();
              }
@@ -434,6 +436,16 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                     outfile << ",\n";
                     outfile << "  \"winner_party_id\": " << match_info.winner_party_id;
                 }
+
+                // add team kill counts
+                outfile << ",\n";
+                outfile << "  \"team_kills\": {";
+                uint32_t team1_kills = ObserverMatchData::GetTeamKillCount(1);
+                uint32_t team2_kills = ObserverMatchData::GetTeamKillCount(2);
+                outfile << "\n";
+                outfile << "    \"1\": " << team1_kills << ",\n";
+                outfile << "    \"2\": " << team2_kills << "\n";
+                outfile << "  }";
 
                 auto AgentTypeToJSONString = [](AgentType type) -> const char* {
                     switch (type) {

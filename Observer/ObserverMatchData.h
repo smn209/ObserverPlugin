@@ -58,4 +58,14 @@ namespace ObserverMatchData {
     void ResetLordDamage();
     long GetTeamLordDamage(uint32_t team_id);
 
+    struct TeamKillCountData {
+        std::map<uint32_t, uint32_t> team_kills;
+        mutable std::mutex mutex;
+    };
+
+    void InitializeTeamKillCount();
+    void AddTeamKill(uint32_t team_id);
+    void ResetTeamKillCount();
+    uint32_t GetTeamKillCount(uint32_t team_id);
+
 } // namespace ObserverMatchData

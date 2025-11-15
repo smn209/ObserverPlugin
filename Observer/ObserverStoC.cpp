@@ -689,6 +689,14 @@ void ObserverStoC::handleDeathResurrection(uint32_t agent_id, bool is_dead) {
         const wchar_t* agent_name = ObserverUtils::DecodeAgentName(agent.encoded_name);
         const wchar_t* status_text = is_dead ? L"is dead" : L"is alive";
         const wchar_t* team_suffix = (agent.team_id == 1) ? L" (B)" : (agent.team_id == 2) ? L" (R)" : L" (?)";
+
+        if (is_dead && agent.type == AgentType::PLAYER) {
+            if (agent.team_id == 1) {
+                ObserverMatchData::AddTeamKill(2);
+            } else if (agent.team_id == 2) {
+                ObserverMatchData::AddTeamKill(1);
+            }
+        }
         
         wchar_t message_buffer[256];
         if (agent_name && agent_name[0] != L'\0' && wcscmp(agent_name, L"<Decoding...>") != 0) {
