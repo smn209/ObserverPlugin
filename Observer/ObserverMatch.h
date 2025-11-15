@@ -39,7 +39,8 @@ struct AgentInfo {
     std::vector<uint32_t> used_skill_ids;
     uint32_t model_id = 0;
     uint32_t gadget_id = 0;
-    std::string skill_template_code; 
+    std::string skill_template_code;
+    long total_damage = 0;
 };
 
 struct GuildInfo {
@@ -69,6 +70,9 @@ struct MatchInfo {
     mutable std::mutex agents_info_mutex; 
     std::map<uint16_t, GuildInfo> guilds_info;
     mutable std::mutex guilds_info_mutex;
+    
+    std::map<uint32_t, long> team_damage;
+    mutable std::mutex team_damage_mutex;
 
     void Reset();
 
@@ -80,7 +84,10 @@ struct MatchInfo {
     std::map<uint32_t, AgentInfo> GetAgentsInfoCopy() const;
     void AddSkillUsed(uint32_t agent_id, uint32_t skill_id); 
     void SortAgentSkills(uint32_t agent_id);
-    void UpdateAgentSkillTemplate(uint32_t agent_id); 
+    void UpdateAgentSkillTemplate(uint32_t agent_id);
+    void AddPlayerDamage(uint32_t agent_id, long damage);
+    void AddTeamDamage(uint32_t team_id, long damage);
+    long GetTeamDamage(uint32_t team_id) const;
 
     void UpdateGuildInfo(const GuildInfo& info);
     std::map<uint16_t, GuildInfo> GetGuildsInfoCopy() const;

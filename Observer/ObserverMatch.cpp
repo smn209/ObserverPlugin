@@ -188,10 +188,11 @@ void MatchInfo::UpdateAgentInfo(const AgentInfo& info) {
     // find the agent in the agents_info map
     auto it = agents_info.find(info.agent_id);
     if (it != agents_info.end()) {
-        // agent exists, preserve existing skills and update other fields
         std::vector<uint32_t> existing_skills = it->second.used_skill_ids;
-        it->second = info; // update the basic info
-        it->second.used_skill_ids = std::move(existing_skills); // restore skills with preserved order
+        long existing_damage = it->second.total_damage;
+        it->second = info;
+        it->second.used_skill_ids = std::move(existing_skills);
+        it->second.total_damage = existing_damage;
     } else {
         // new agent, insert directly
         agents_info[info.agent_id] = info;
@@ -447,6 +448,15 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                 outfile << "    \"2\": " << team2_kills << "\n";
                 outfile << "  }";
 
+                outfile << ",\n";
+                outfile << "  \"team_damage\": {";
+                long team1_damage = match_info.GetTeamDamage(1);
+                long team2_damage = match_info.GetTeamDamage(2);
+                outfile << "\n";
+                outfile << "    \"1\": " << team1_damage << ",\n";
+                outfile << "    \"2\": " << team2_damage << "\n";
+                outfile << "  }";
+
                 auto AgentTypeToJSONString = [](AgentType type) -> const char* {
                     switch (type) {
                         case AgentType::PLAYER: return "PLAYER";
@@ -534,7 +544,8 @@ bool ObserverMatch::ExportLogsToFolder(const wchar_t* folder_name) {
                                 << ", \"guild_id\": " << agent.guild_id
                                 << ", \"model_id\": " << agent.model_id
                                 << ", \"gadget_id\": " << agent.gadget_id
-                                << ", \"encoded_name\": " << decoded_name_json;
+                                << ", \"encoded_name\": " << decoded_name_json
+                                << ", \"total_damage\": " << agent.total_damage;
 
                         if (!agent.skill_template_code.empty()) {
                             outfile << ", \"skill_template_code\": \"" << agent.skill_template_code << "\"";
@@ -711,7 +722,11 @@ void MatchInfo::Reset() {
     end_time_formatted = L"";
     winner_party_id = 0;
     ClearAgentInfoMap(); 
-    ClearGuildInfoMap(); 
+    ClearGuildInfoMap();
+    {
+        std::lock_guard<std::mutex> lock(team_damage_mutex);
+        team_damage.clear();
+    }
 }
 
 void MatchInfo::ClearAgentInfoMap() {
@@ -722,6 +737,35 @@ void MatchInfo::ClearAgentInfoMap() {
 void MatchInfo::ClearGuildInfoMap() {
     std::lock_guard<std::mutex> lock(guilds_info_mutex);
     guilds_info.clear();
+}
+
+void MatchInfo::AddPlayerDamage(uint32_t agent_id, long damage) {
+    if (agent_id == 0) return;
+    
+    std::lock_guard<std::mutex> lock(agents_info_mutex);
+    auto it = agents_info.find(agent_id);
+    if (it != agents_info.end()) {
+        it->second.total_damage += damage;
+        if (it->second.total_damage < 0) {
+            it->second.total_damage = 0;
+        }
+    }
+}
+
+void MatchInfo::AddTeamDamage(uint32_t team_id, long damage) {
+    if (team_id == 0) return;
+    
+    std::lock_guard<std::mutex> lock(team_damage_mutex);
+    team_damage[team_id] += damage;
+    if (team_damage[team_id] < 0) {
+        team_damage[team_id] = 0;
+    }
+}
+
+long MatchInfo::GetTeamDamage(uint32_t team_id) const {
+    std::lock_guard<std::mutex> lock(team_damage_mutex);
+    auto it = team_damage.find(team_id);
+    return (it != team_damage.end()) ? it->second : 0L;
 }
 
 void ObserverMatch::SetOwnerPlugin(ObserverPlugin* plugin) {

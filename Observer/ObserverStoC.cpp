@@ -471,6 +471,34 @@ void ObserverStoC::handleDamage(uint32_t caster_id, uint32_t target_id, float va
     // using raw id for simplicity: 1=normal, 2=crit, 3=armorignoring
     handleDamagePacket(caster_id, target_id, value, damage_type);
 
+    if (owner->match_handler && value < 0) {
+        GW::Agent* target = GW::Agents::GetAgentByID(target_id);
+        GW::Agent* caster = GW::Agents::GetAgentByID(caster_id);
+        
+        if (target && caster && target->GetIsLivingType() && caster->GetIsLivingType()) {
+            GW::AgentLiving* target_living = target->GetAsAgentLiving();
+            GW::AgentLiving* caster_living = caster->GetAsAgentLiving();
+            
+            if (target_living && caster_living) {
+                uint32_t target_max_hp = target_living->max_hp > 0 ? target_living->max_hp : 1680;
+                long actual_damage = static_cast<long>(std::round(-value * target_max_hp));
+                
+                MatchInfo& match_info = owner->match_handler->GetMatchInfo();
+                const auto agents = match_info.GetAgentsInfoCopy();
+                auto caster_it = agents.find(caster_id);
+                
+                if (caster_it != agents.end()) {
+                    match_info.AddPlayerDamage(caster_id, actual_damage);
+                    
+                    uint32_t caster_team_id = caster_living->team_id;
+                    if (caster_team_id == 1 || caster_team_id == 2) {
+                        match_info.AddTeamDamage(caster_team_id, actual_damage);
+                    }
+                }
+            }
+        }
+    }
+
     wchar_t message_buffer[128];
     // format: damage;caster_id;target_id;value;damage_type_id
     swprintf(message_buffer, 128, L"DAMAGE;%u;%u;%f;%u", caster_id, target_id, value, damage_type);
